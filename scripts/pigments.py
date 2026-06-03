@@ -39,7 +39,7 @@ class PigmentsConfig:
         self.optimization_sample_count = optimization_sample_count
 
 class Pigments():
-    # Saunderson coefficients correction
+    # Saunderson correction coefficients
     # "Developing a spectral and colorimetric database of artist paint materials", Okumura, 2005
     K1 = 0.030
     K2 = 0.650
@@ -137,6 +137,7 @@ class Pigments():
         R = ((1.0 - self.K1) * (1.0 - self.K2) * Rmix) / (1.0 - self.K2 * Rmix)
         R = np.clip(R, 0, 1)
 
+        # Integration and conversion to sRGB
         xyz = sp.integrate.trapezoid(
             self.normalized_observer_D65 * R, self.wavelengths)
         r, g, b = _xyz_to_rgb(*xyz)
@@ -211,49 +212,45 @@ class Pigments():
         return unique_samples.to(torch.float32) / float(steps)
 
     def __mix_Q(self, concentrations, K, S):
-        # 1. Kubelka-Munk Mixing
+        # Kubelka-Munk Mixing
         K_mix = torch.matmul(concentrations, K)
         S_mix = torch.matmul(concentrations, S)
 
-        # 2. Kubelka-Munk Reflectance
+        if not self.config.use_substrate:
+            # Safe division: add 1e-7 to avoid dividing by 0 if S_mix becomes 0
+            KSmix = torch.abs(K_mix) / (torch.abs(S_mix) + 1e-7)
+            # We add 1e-12 inside the root to ensure gradients remain stable
+            inside_root = (KSmix ** 2) + (2.0 * KSmix) + 1e-12
+            R_mix = 1.0 + KSmix - torch.sqrt(inside_root)
+        else:
+            # Substrate-aware mixing:
+            a = 1.0 + (K_mix / (S_mix + 1e-7))
+            b = torch.sqrt(torch.clip(a * a - 1.0, 1e-12, None))
 
-        # The code below is when ignoring the substrate:
-        # # Safe division: add 1e-7 to avoid dividing by 0 if S_mix becomes 0
-        # KSmix = torch.abs(K_mix) / (torch.abs(S_mix) + 1e-7)
-        # # We add 1e-12 inside the root to ensure gradients remain stable
-        # inside_root = (KSmix ** 2) + (2.0 * KSmix) + 1e-12
-        # R_mix = 1.0 + KSmix - torch.sqrt(inside_root)
+            bSX = b * S_mix * self.config.paint_thickness
+            safe_bSX = torch.clip(bSX, max=20.0)
 
-        # Substrate-aware mixing:
-        a = 1.0 + (K_mix / (S_mix + 1e-7))
-        b = torch.sqrt(torch.clip(a * a - 1.0, 1e-12, None))
+            coth = torch.cosh(safe_bSX) / (torch.sinh(safe_bSX) + 1e-7)
 
-        bSX = b * S_mix * self.config.paint_thickness
-        safe_bSX = torch.clip(bSX, max=20.0)
+            num = 1.0 - self.config.canvas_reflectance * (a - b * coth)
+            den = a - self.config.canvas_reflectance + b * coth
 
-        coth = torch.cosh(safe_bSX) / (torch.sinh(safe_bSX) + 1e-7)
+            mask = bSX > 20
+            R_mix = torch.where(
+                mask,
+                a - b,
+                torch.clip(num / (den + 1e-7), 0.0, 1.0)
+            )
 
-        num = 1.0 - self.config.canvas_reflectance * (a - b * coth)
-        den = a - self.config.canvas_reflectance + b * coth
-
-        mask = bSX > 20
-        R_mix = torch.where(
-            mask,
-            a - b,
-            torch.clip(num / (den + 1e-7), 0.0, 1.0)
-        )
-        # End substrate-aware mixing
-
-        # 3. Saunderson Correction
+        # Saunderson Correction
         numerator = (1.0 - self.K1) * (1.0 - self.K2) * R_mix
         denominator = 1.0 - (self.K2 * R_mix)
         R = numerator / denominator
 
-        # 4. Integration to XYZ Color Space
+        # Integration and conversion to sRGB
         integrand = R.unsqueeze(-1) * self.XYZ_CMF_D65
         XYZ = torch.trapezoid(integrand, x=self.L, dim=-2)
-        
-        # 5. XYZ to Linear sRGB
+
         M_XYZ_to_sRGB = torch.tensor([
             [ 3.2404542, -1.5371385, -0.4985314],
             [-0.9692660,  1.8760108,  0.0415560],
@@ -262,7 +259,6 @@ class Pigments():
 
         linear_rgb = torch.matmul(XYZ, M_XYZ_to_sRGB.T)
         
-        # 6. Linear sRGB to sRGB
         # Mask out negaative values to keep pow differentiable
         nan_mask = linear_rgb < 0.0
         safe_linear_rgb = torch.where(
