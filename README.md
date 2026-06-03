@@ -1,2 +1,4 @@
-# vibrance
-Natural color mixing for Kotlin
+# Vibrance
+
+Natural color mixing for Kotlin.
+

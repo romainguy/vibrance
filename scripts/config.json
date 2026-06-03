@@ -1,0 +1,7 @@
+{
+    "use_optimized_pigments": true,
+    "use_substrate": true,
+    "paint_thickness": 1.0,
+    "canvas_reflectance": 1.0,
+    "optimization_sample_count": 384
+}
