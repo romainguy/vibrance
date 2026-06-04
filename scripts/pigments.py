@@ -19,11 +19,13 @@ class DataConfig:
         self,
         model_path_onnx,
         model_path_json,
+        model_path_kotlin,
         lut_path_npy,
         lut_uint8_path_npy
     ):
         self.model_path_onnx = model_path_onnx
         self.model_path_json = model_path_json
+        self.model_path_kotlin = model_path_kotlin
         self.lut_path_npy = lut_path_npy
         self.lut_uint8_path_npy = lut_uint8_path_npy
 

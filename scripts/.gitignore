@@ -1,5 +1,6 @@
 .venv/
 __pycache__/
+data/*.kt
 data/pigments_*.json
 data/pigments_*.npy
 data/pigments_*.onnx
