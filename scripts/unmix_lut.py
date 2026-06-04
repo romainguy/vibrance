@@ -18,7 +18,7 @@ def process_red_slice(r):
 
     return r, slice_data
 
-def generate_3d_lut(output_filename="data/pigments_lut_256_fp16.npy"):
+def generate_3d_lut(output_filename):
     print(f"Generating 256x256x256 LUT.")
 
     lut_3d = np.zeros((256, 256, 256, 3), dtype=np.float16)
@@ -42,4 +42,5 @@ def generate_3d_lut(output_filename="data/pigments_lut_256_fp16.npy"):
     print(f"LUT successfully generated.")
 
 if __name__ == '__main__':
-    generate_3d_lut()
+    data_config = pigments.load_data_config_from_json('data_config.json')
+    generate_3d_lut(data_config.lut_path_npy)

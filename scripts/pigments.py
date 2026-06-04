@@ -4,10 +4,28 @@ import numpy as np
 import scipy as sp
 import torch
 
+def load_data_config_from_json(filepath):
+    with open(filepath, 'r') as file:
+        data = json.load(file)
+    return DataConfig(**data)
+
 def load_config_from_json(filepath):
     with open(filepath, 'r') as file:
         data = json.load(file)
     return PigmentsConfig(**data)
+
+class DataConfig:
+    def __init__(
+        self,
+        model_path_onnx,
+        model_path_json,
+        lut_path_npy,
+        lut_uint8_path_npy
+    ):
+        self.model_path_onnx = model_path_onnx
+        self.model_path_json = model_path_json
+        self.lut_path_npy = lut_path_npy
+        self.lut_uint8_path_npy = lut_uint8_path_npy
 
 class PigmentsConfig:
     def __init__(
