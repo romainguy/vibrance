@@ -6,7 +6,6 @@ import sys
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.mobile_optimizer import optimize_for_mobile
 
 class PositionalEncoding(nn.Module):
     def __init__(self, num_frequencies=6):
