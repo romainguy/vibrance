@@ -1,16 +1,12 @@
 import json
-from xml.parsers.expat import model
 import numpy as np
 import onnxruntime as ort
+import pigments
 import sys
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.mobile_optimizer import optimize_for_mobile
-
-model_path_onnx = "data/pigments_mlp.onnx"
-model_path_json = "data/pigments_mlp.json"
-lut_path_npy = 'data/pigments_lut_256_fp16.npy'
 
 class PositionalEncoding(nn.Module):
     def __init__(self, num_frequencies=6):
@@ -49,7 +45,7 @@ class TinyMLP(nn.Module):
         x_encoded = self.pe(x)
         return self.net(x_encoded)
 
-def export(model):
+def export(data_config, model):
     model.eval()
 
     # Export to ONNX
@@ -57,7 +53,7 @@ def export(model):
     torch.onnx.export(
         model,
         dummy_input,
-        model_path_onnx,
+        data_config.model_path_onnx,
         export_params=True,
         input_names=['rgb_input'],
         output_names=['latent_out'],
@@ -68,32 +64,33 @@ def export(model):
         # }
         dynamic_shapes={"x": {0: "batch_size"}}
     )
-    print(f"Exported to ONNX format: {model_path_onnx}")
+    print(f"Exported to ONNX format: {data_config.model_path_onnx}")
 
     # Export to JSON
     export_data = {}
     export_data["pe_freqs"] = model.pe.freq_bands.detach().cpu().numpy().tolist()
     for name, param in model.named_parameters():
         export_data[name] = param.detach().cpu().numpy().tolist()
-    with open(model_path_json, "w") as f:
+    with open(data_config.model_path_json, "w") as f:
         json.dump(export_data, f)        
-    print(f"Exported raw matrix weights to: {model_path_json}")
+    print(f"Exported raw matrix weights to: {data_config.model_path_json}")
 
-def train(dataset):
+def train(data_config, dataset):
     model = TinyMLP(num_frequencies=6, hidden_dim=32)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters())}")
 
     dataset_tensor = torch.tensor(dataset, dtype=torch.float32)
 
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = optim.Adam(model.parameters(), lr=2e-3)
     criterion = nn.MSELoss()
 
-    # TODO: We should probably used a learning rate scheduler to handle the
-    # loss plateauing after a few thousand epochs. For now, we'll just run
-    # for a fixed number of epochs and hope for the best.
-    batch_size = 8192
-    epochs = 500_000
-    loss_threshold = 3.3e-6
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='min', factor=0.5, patience=40_000
+    )
+
+    batch_size = 8_192
+    epochs = 1_000_000
+    loss_threshold = 3.1e-6
     best_loss = float('inf')
 
     for epoch in range(epochs):
@@ -116,22 +113,26 @@ def train(dataset):
         loss.backward()
         optimizer.step()
 
-        if loss.item() < best_loss:
-            best_loss = loss.item()
-        if loss.item() < loss_threshold:
-            print(f"Early stopping at epoch {epoch} with loss {loss.item():.8f}")
+        current_loss = loss.item()
+        scheduler.step(current_loss)
+
+        if current_loss < best_loss:
+            best_loss = current_loss
+        if current_loss < loss_threshold:
+            print(f"Early stopping at epoch {epoch} with loss {current_loss:.8f}")
             break
         
         if epoch % 500 == 0:
-            print(f"Epoch {epoch} | Best loss: {best_loss:.8f}")
+            current_lr = optimizer.param_groups[0]['lr']
+            print(f"Epoch {epoch} | Best loss: {best_loss:.8f} | Learning rate: {current_lr:.2e}")
 
     print(f"Final training loss: {best_loss:.8f}")
-    export(model)
+    export(data_config, model)
 
-def query_single_color(r, g, b, dataset):
-    print(f"Loading model: {model_path_onnx}...")
+def query_single_color(r, g, b, data_config, dataset):
+    print(f"Loading model: {data_config.model_path_onnx}...")
 
-    session = ort.InferenceSession(model_path_onnx)
+    session = ort.InferenceSession(data_config.model_path_onnx)
     input_name = session.get_inputs()[0].name
     output_name = session.get_outputs()[0].name
 
@@ -155,13 +156,14 @@ if __name__ == "__main__":
 
     command = sys.argv[1]
 
-    dataset = np.load(lut_path_npy).astype(np.float32)
+    data_config = pigments.load_data_config_from_json('data_config.json')
+    dataset = np.load(data_config.lut_path_npy).astype(np.float32)
 
     if command == "train":
-        train(dataset)
+        train(data_config, dataset)
     elif command == "query":
         if len(sys.argv) != 5:
             print("Usage: python3 mlp.py query r g b")
             sys.exit(1)
         r, g, b = map(int, sys.argv[2:5])
-        query_single_color(r, g, b, dataset)
+        query_single_color(r, g, b, data_config, dataset)

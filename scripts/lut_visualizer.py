@@ -1,6 +1,7 @@
-import sys
-import numpy as np
 import fastplotlib as fpl
+import numpy as np
+import pigments
+import sys
 from PySide6 import QtWidgets, QtCore
 from rendercanvas.auto import RenderCanvas
 
@@ -91,13 +92,13 @@ class LUTVisualizer(QtWidgets.QWidget):
         self.surface.cmap = self.cmaps[p_idx]
 
 def main():
-    file_path = 'data/pigments_lut_256_fp16.npy'
-    print(f"Loading LUT from {file_path}...")
+    data_config = pigments.load_data_config_from_json('data_config.json')
+    print(f"Loading LUT from {data_config.lut_path_npy}...")
     
     try:
-        lut = np.load(file_path).astype(np.float32)
+        lut = np.load(data_config.lut_path_npy).astype(np.float32)
     except FileNotFoundError:
-        print(f"File not found: {file_path}. Exiting.")
+        print(f"File not found: {data_config.lut_path_npy}. Exiting.")
         sys.exit(1)
 
     print(f"LUT Shape: {lut.shape}")

@@ -1,5 +1,5 @@
 import numpy as np
-import argparse
+import pigments
 
 def convert_to_uint8(input_file, output_file):
     try:
@@ -14,6 +14,8 @@ def convert_to_uint8(input_file, output_file):
         print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
-    input_filename = 'data/pigments_lut_256_fp16.npy'
-    output_filename = 'data/pigments_lut_256_uint8.npy'
-    convert_to_uint8(input_filename, output_filename)
+    data_config = pigments.load_data_config_from_json('data_config.json')
+    convert_to_uint8(
+        data_config.lut_path_npy,
+        data_config.lut_uint8_path_npy
+    )
