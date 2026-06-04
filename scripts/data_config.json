@@ -1,6 +1,7 @@
 {
     "model_path_onnx": "data/pigments_mlp.onnx",
     "model_path_json": "data/pigments_mlp.json",
+    "model_path_kotlin": "data/PigmentsModelWeights.kt",
     "lut_path_npy": "data/pigments_lut_256_fp16.npy",
     "lut_uint8_path_npy": "data/pigments_lut_256_uint8.npy"
 }
