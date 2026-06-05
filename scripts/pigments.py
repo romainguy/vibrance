@@ -199,9 +199,7 @@ class Pigments():
         def objective(c):
             predicted_rgb = self.mix(c)
             mse_loss = np.linalg.norm(predicted_rgb - target_rgb) ** 2
-            
             sum_penalty = 1000.0 * (np.sum(c) - 1.0) ** 2
-            
             return mse_loss + sum_penalty
 
         result = sp.optimize.minimize(
@@ -215,24 +213,19 @@ class Pigments():
         return final_c if result.success else None
 
     def unmix(self, target_rgb):
-        # Initial guess as specified in the paper
         c0 = np.array([0.25, 0.25, 0.25, 0.25])
 
-        # Minimize ||mix(c) - RGB||^2
         def objective(c):
             predicted_rgb = self.mix(c)
             return np.linalg.norm(predicted_rgb - target_rgb) ** 2
 
-        # Constraint 1: Concentrations must be between 0 and 1
         bounds = [(0.0, 1.0) for _ in range(4)]
-
-        # Constraint 2: Concentrations sum to 1
         constraints = {'type': 'eq', 'fun': lambda c: np.sum(c) - 1.0}
 
         result = sp.optimize.minimize(
             objective,
             c0,
-            method='trust-constr', # SLSQP
+            method='SLSQP',
             bounds=bounds,
             constraints=constraints
         )
