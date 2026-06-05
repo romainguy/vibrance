@@ -64,7 +64,7 @@ def convert_json_to_kotlin(
         data = json.load(f)
 
     with open(output_kt_path, 'w') as f:
-        f.write(f"object {object_name} {{\n")
+        f.write(f"internal object {object_name} {{\n")
 
         for key, value in data.items():
             kt_name = to_camel_case(key)
