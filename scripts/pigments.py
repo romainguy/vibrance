@@ -66,7 +66,15 @@ class Pigments():
 
     def __init__(self, config):
         self.config = config
-        self.device = torch.device("mps")
+        if torch.backends.mps.is_available():
+            self.device = torch.device("mps")
+            print("🚀 Accelerating using Apple Silicon GPU (MPS)")
+        elif torch.cuda.is_available():
+            self.device = torch.device("cuda")
+            print("🚀 Accelerating using NVIDIA GPU (CUDA)")
+        else:
+            self.device = torch.device("cpu")
+            print("⚠️ Running on CPU")
         self.__loadData()
         self.__loadPigmentData()
 
@@ -132,6 +140,9 @@ class Pigments():
             )
         )
 
+        self.P_star_K = torch.tensor(self.K, dtype=torch.float32, device=self.device)
+        self.P_star_S = torch.tensor(self.S, dtype=torch.float32, device=self.device)
+
     def mix(self, concentration):
         Kmix = np.dot(concentration, self.K)
         Smix = np.dot(concentration, self.S)
@@ -164,6 +175,45 @@ class Pigments():
 
         return np.clip(np.array([_EOTF_sRGB(r), _EOTF_sRGB(g), _EOTF_sRGB(b)]), 0, 1)
 
+    def unmix_torch(self, target_rgb_tensor, steps=500, lr=0.05):
+        device = target_rgb_tensor.device
+        spatial_shape = target_rgb_tensor.shape[:-1] 
+        c_raw = torch.zeros((*spatial_shape, 4), device=device, requires_grad=True)
+        
+        optimizer = torch.optim.Adam([c_raw], lr=lr)
+        
+        for step in range(steps):
+            optimizer.zero_grad()
+            c_valid = torch.nn.functional.softmax(c_raw, dim=-1)
+            predicted_rgb = self.mix_torch(c_valid, self.P_star_K, self.P_star_S)
+            loss = torch.nn.functional.mse_loss(predicted_rgb, target_rgb_tensor)
+            loss.backward()
+            optimizer.step()
+            
+        return torch.nn.functional.softmax(c_raw, dim=-1).detach()
+
+    def unmix_lbfgs(self, target_rgb):
+        c0 = np.array([0.25, 0.25, 0.25, 0.25])
+        bounds = [(0.0, 1.0) for _ in range(4)]
+
+        def objective(c):
+            predicted_rgb = self.mix(c)
+            mse_loss = np.linalg.norm(predicted_rgb - target_rgb) ** 2
+            
+            sum_penalty = 1000.0 * (np.sum(c) - 1.0) ** 2
+            
+            return mse_loss + sum_penalty
+
+        result = sp.optimize.minimize(
+            objective,
+            c0,
+            method='L-BFGS-B', 
+            bounds=bounds
+        )
+
+        final_c = result.x / np.sum(result.x)
+        return final_c if result.success else None
+
     def unmix(self, target_rgb):
         # Initial guess as specified in the paper
         c0 = np.array([0.25, 0.25, 0.25, 0.25])
@@ -179,11 +229,10 @@ class Pigments():
         # Constraint 2: Concentrations sum to 1
         constraints = {'type': 'eq', 'fun': lambda c: np.sum(c) - 1.0}
 
-        # Run the optimization
         result = sp.optimize.minimize(
             objective,
             c0,
-            method='SLSQP',
+            method='trust-constr', # SLSQP
             bounds=bounds,
             constraints=constraints
         )
@@ -231,7 +280,7 @@ class Pigments():
         unique_samples = torch.unique(all_faces, dim=0)    
         return unique_samples.to(torch.float32) / float(steps)
 
-    def __mix_Q(self, concentrations, K, S):
+    def mix_torch(self, concentrations, K, S):
         # Kubelka-Munk Mixing
         K_mix = torch.matmul(concentrations, K)
         S_mix = torch.matmul(concentrations, S)
@@ -304,7 +353,7 @@ class Pigments():
         
         # Target
         with torch.no_grad():
-            orig_rgb = self.__mix_Q(boundary_concentrations, P_star_K, P_star_S)
+            orig_rgb = self.mix_torch(boundary_concentrations, P_star_K, P_star_S)
             psi_orig = _psi_oklab(orig_rgb)
 
         alpha = 100000.0
@@ -316,7 +365,7 @@ class Pigments():
             K_surr = torch.exp(torch.clamp(K_log, -10.0, 5.0))
             S_surr = torch.exp(torch.clamp(S_log, -10.0, 5.0))
             
-            surr_rgb = self.__mix_Q(boundary_concentrations, K_surr, S_surr)
+            surr_rgb = self.mix_torch(boundary_concentrations, K_surr, S_surr)
             
             # E_push
             q = _phi_signed_distance(surr_rgb)
@@ -364,16 +413,15 @@ class Pigments():
         if self.config.use_optimized_pigments:
             raise ValueError("Pigments are already optimized. Set use_optimized_pigments to False to run optimization again.")
 
-        P_star_K = torch.tensor(self.K, dtype=torch.float32, device=self.device)
-        P_star_S = torch.tensor(self.S, dtype=torch.float32, device=self.device)
-
         print(f"Optimizing with {self.config.optimization_sample_count} samples per pigment")
 
         boundary_concentrations = self.__generate_boundary_samples(
-            self.config.optimization_sample_count, self.device)
+            self.config.optimization_sample_count, self.device
+        )
 
         K_surrogate, S_surrogate = self.__optimize_pigments_adam(
-            P_star_K, P_star_S, boundary_concentrations)
+            self.P_star_K, self.P_star_S, boundary_concentrations
+        )
 
         Q_star_K = K_surrogate.T.cpu().detach().numpy()
         Q_star_S = S_surrogate.T.cpu().detach().numpy()
