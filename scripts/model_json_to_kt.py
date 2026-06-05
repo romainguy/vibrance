@@ -21,15 +21,30 @@ def array_1d_to_kt(arr, indent_level):
     body = ",\n".join(f"{inner_indent}{chunk}" for chunk in chunks)
     return f"floatArrayOf(\n{body}\n{indent})"
 
+def inner_array_1d_to_kt(arr, indent_level):
+    indent = "    " * indent_level
+    inner_indent = "    " * (indent_level + 1)
+    
+    floats = [format_float(x) for x in arr]
+
+    chunk_size = 8
+    chunks = [", ".join(floats[i:i+chunk_size]) for i in range(0, len(floats), chunk_size)]
+    
+    if len(chunks) == 1:
+        return f"{chunks[0]}"
+    
+    body = ",\n".join(f"{inner_indent}{chunk}" for chunk in chunks)
+    return f"{body},\n"
+
 def array_2d_to_kt(arr, indent_level):
     """Convert a 2D Python list to a Kotlin Array<FloatArray> string."""
     indent = "    " * indent_level
     inner_indent = "    " * (indent_level + 1)
     
-    inner_arrays = [array_1d_to_kt(row, indent_level + 1) for row in arr]
-    body = ",\n".join(f"{inner_indent}{row}" for row in inner_arrays)
+    inner_arrays = [inner_array_1d_to_kt(row, indent_level) for row in arr]
+    body = "".join(f"{row}" for row in inner_arrays)
     
-    return f"arrayOf(\n{body}\n{indent})"
+    return f"floatArrayOf(\n{body}{indent})"
 
 def to_camel_case(key):
     """Convert JSON keys like 'net.0.weight' to Kotlin camelCase like 'net0Weight'."""
@@ -57,7 +72,7 @@ def convert_json_to_kotlin(
             if isinstance(value, list):
                 if len(value) > 0 and isinstance(value[0], list):
                     kt_val = array_2d_to_kt(value, 1)
-                    f.write(f"    val {kt_name}: Array<FloatArray> = {kt_val}\n\n")
+                    f.write(f"    val {kt_name}: FloatArray = {kt_val}\n\n")
                 else:
                     kt_val = array_1d_to_kt(value, 1)
                     f.write(f"    val {kt_name}: FloatArray = {kt_val}\n\n")
