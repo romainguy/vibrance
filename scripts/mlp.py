@@ -68,7 +68,7 @@ def export(data_config, model):
         export_data[name] = param.detach().cpu().numpy().tolist()
     with open(data_config.model_path_json, "w") as f:
         json.dump(export_data, f)        
-    print(f"Exported raw matrix weights to: {data_config.model_path_json}")
+    print(f"Exported to JSON format: {data_config.model_path_json}")
 
 def evaluate_global_accuracy(model, dataset_tensor, num_samples=65_536):
     model.eval()
@@ -96,18 +96,20 @@ def train(data_config, dataset):
     criterion = nn.HuberLoss(delta=0.1)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
-    hard_batch = int(batch_size * 0.2)
-    rand_batch = batch_size - hard_batch
+    targeted_batch = int(batch_size * 0.1)                # 10% strictly Z > 220
+    ohem_batch = int(batch_size * 0.2)                    # 20% dynamic hard examples
+    rand_batch = batch_size - targeted_batch - ohem_batch # 70% uniform random
 
     best_loss = float('inf')
     max_error = 0
-    mean_error = 0
-
+    
     for epoch in range(epochs):
         optimizer.zero_grad()
         
+        # Uniform random batch
         random_indices = torch.randint(0, 256, (rand_batch, 3))
 
+        # OHEM batch
         model.eval()
         with torch.no_grad():
             large_pool_indices = torch.randint(0, 256, (65_536, 3))
@@ -119,18 +121,22 @@ def train(data_config, dataset):
             ]
 
             predictions = model(x_test)
-            
-            errors = torch.mean(torch.abs(predictions - truth), dim=1)
-            max_error = torch.max(errors).item()
-            mean_error = torch.mean(errors).item()
 
-            worst_indices = torch.topk(errors, hard_batch).indices
+            errors = torch.max(torch.abs(predictions - truth), dim=1).values
+            max_error = errors.max().item()
+
+            worst_indices = torch.topk(errors, ohem_batch).indices
             hard_indices = large_pool_indices[worst_indices]
         model.train()
 
-        combined_indices = torch.cat([random_indices, hard_indices], dim=0)
+        # Targeted batch
+        x_targeted = torch.randint(0, 256, (targeted_batch, 1))
+        y_targeted = torch.randint(0, 256, (targeted_batch, 1)) 
+        z_targeted = torch.randint(210, 256, (targeted_batch, 1))
+        targeted_indices = torch.cat([x_targeted, y_targeted, z_targeted], dim=1)
 
-        # Normalize the RGB inputs to [0.0, 1.0] for the Neural Network
+        combined_indices = torch.cat([random_indices, hard_indices, targeted_indices], dim=0)
+
         x_train = combined_indices.float() / 255.0
 
         y_target = dataset_tensor[
@@ -154,7 +160,10 @@ def train(data_config, dataset):
             best_loss = current_loss
 
         if epoch % 1000 == 0:
-            print(f"Epoch {epoch} | LR: {optimizer.param_groups[0]['lr']:.2e} | Best Loss: {best_loss:.8f} | Max Error: {max_error:.4f} | Mean Error: {mean_error:.4f}")
+            print(
+                f"Epoch {epoch} | LR: {optimizer.param_groups[0]['lr']:.2e} | "
+                f"Best Loss: {best_loss:.8f} | Max Error: {max_error:.4f}"
+            )
 
     max_error, mean_error = evaluate_global_accuracy(model, dataset_tensor)
     print(f"Final Training Loss: {best_loss:.8f}")
@@ -162,11 +171,11 @@ def train(data_config, dataset):
 
     export(data_config, model)
 
-def calculate_operations(num_freqs, hidden_dim):
-    in_dim = 3 + (3 * 2 * num_freqs)
-    ops_layer1 = in_dim * hidden_dim
-    ops_layer2 = hidden_dim * hidden_dim
-    ops_layer3 = hidden_dim * 3
+def calculate_operations(num_freqs, hidden_dimension):
+    input_dimension = 3 + (3 * 2 * num_freqs)
+    ops_layer1 = input_dimension * hidden_dimension
+    ops_layer2 = hidden_dimension * hidden_dimension
+    ops_layer3 = hidden_dimension * 3
     trig_ops = 3 * 2 * num_freqs
     return trig_ops + ops_layer1 + ops_layer2 + ops_layer3
 
