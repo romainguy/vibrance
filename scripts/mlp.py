@@ -1,4 +1,5 @@
 import json
+from pyexpat import model
 import numpy as np
 import onnxruntime as ort
 import pigments
@@ -24,7 +25,7 @@ class PositionalEncoding(nn.Module):
         return torch.cat(encoded, dim=-1)
 
 class PigmentsMLP(nn.Module):
-    def __init__(self, num_frequencies=4, hidden_dim=32):
+    def __init__(self, num_frequencies=6, hidden_dim=32):
         super().__init__()
         self.pe = PositionalEncoding(num_frequencies)
 
@@ -69,58 +70,88 @@ def export(data_config, model):
         json.dump(export_data, f)        
     print(f"Exported raw matrix weights to: {data_config.model_path_json}")
 
+def evaluate_global_accuracy(model, dataset, num_samples=65_536):
+    model.eval()
+    with torch.no_grad():
+        indices = torch.randint(0, 256, (num_samples, 3))
+        x_test = indices.float() / 255.0
+        predictions = model(x_test)
+        truth = dataset[indices[:, 0], indices[:, 1], indices[:, 2]]
+        errors = torch.abs(predictions - truth)
+        max_error = torch.max(errors).item()
+        mean_error = torch.mean(errors).item()
+        model.train()
+        return max_error, mean_error
+
 def train(data_config, dataset):
     model = PigmentsMLP()
     print(f"Model parameters: {sum(p.numel() for p in model.parameters())}")
 
     dataset_tensor = torch.tensor(dataset, dtype=torch.float32)
 
-    optimizer = optim.Adam(model.parameters(), lr=2e-3)
-    criterion = nn.MSELoss()
-
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='min', factor=0.5, patience=40_000
-    )
-
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    criterion = nn.HuberLoss(delta=0.1) #nn.MSELoss()
+    # scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+    #     optimizer, mode='min', factor=0.5, patience=200
+    # )
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10_000)
     batch_size = 8_192
-    epochs = 1_000_000
-    loss_threshold = 3e-6
+    hard_batch = int(batch_size * 0.2)
+    rand_batch = batch_size - hard_batch
+
+    epochs = 100_000
+
     best_loss = float('inf')
 
     for epoch in range(epochs):
         optimizer.zero_grad()
         
-        random_indices = torch.randint(0, 256, (batch_size, 3))
+        random_indices = torch.randint(0, 256, (rand_batch, 3))
+
+        with torch.no_grad():
+            large_pool_indices = torch.randint(0, 256, (65_536, 3))
+            x_pool = large_pool_indices.float() / 255.0
+            y_pool_target = dataset_tensor[
+                large_pool_indices[:, 0], 
+                large_pool_indices[:, 1], 
+                large_pool_indices[:, 2]
+            ]
+
+            pool_preds = model(x_pool)
+            
+            errors = torch.mean(torch.abs(pool_preds - y_pool_target), dim=1)
+            
+            worst_indices = torch.topk(errors, hard_batch).indices
+            hard_indices = large_pool_indices[worst_indices]
+
+        combined_indices = torch.cat([random_indices, hard_indices], dim=0)
 
         # Normalize the RGB inputs to [0.0, 1.0] for the Neural Network
-        x_train = random_indices.float() / 255.0
+        x_train = combined_indices.float() / 255.0
 
         y_target = dataset_tensor[
-            random_indices[:, 0], 
-            random_indices[:, 1], 
-            random_indices[:, 2]
+            combined_indices[:, 0], 
+            combined_indices[:, 1], 
+            combined_indices[:, 2]
         ]
         
         y_pred = model(x_train)
 
         loss = criterion(y_pred, y_target)
         loss.backward()
+
+        nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
         optimizer.step()
+        scheduler.step()
 
         current_loss = loss.item()
-        scheduler.step(current_loss)
-
         if current_loss < best_loss:
             best_loss = current_loss
-        if current_loss < loss_threshold:
-            print(f"Early stopping at epoch {epoch} with loss {current_loss:.8f}")
-            break
-        
-        if epoch % 500 == 0:
-            current_lr = optimizer.param_groups[0]['lr']
-            print(f"Epoch {epoch} | Best loss: {best_loss:.8f} | Learning rate: {current_lr:.2e}")
 
-    print(f"Final training loss: {best_loss:.8f}")
+        if epoch % 1000 == 0:
+            print(f"Epoch {epoch} | LR: {optimizer.param_groups[0]['lr']:.2e} | Best Loss: {best_loss:.8f}")
+
     export(data_config, model)
 
 def calculate_operations(num_freqs, hidden_dim):
