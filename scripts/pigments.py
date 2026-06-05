@@ -182,7 +182,7 @@ class Pigments():
         
         optimizer = torch.optim.Adam([c_raw], lr=lr)
         
-        for step in range(steps):
+        for _ in range(steps):
             optimizer.zero_grad()
             c_valid = torch.nn.functional.softmax(c_raw, dim=-1)
             predicted_rgb = self.mix_torch(c_valid, self.P_star_K, self.P_star_S)
@@ -356,9 +356,9 @@ class Pigments():
             orig_rgb = self.mix_torch(boundary_concentrations, P_star_K, P_star_S)
             psi_orig = _psi_oklab(orig_rgb)
 
-        alpha = 100000.0
+        alpha = 100_000.0
 
-        for epoch in range(40000):
+        for epoch in range(50_000):
             optimizer.zero_grad()
             
             # Get physical parameters
