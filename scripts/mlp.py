@@ -70,13 +70,13 @@ def export(data_config, model):
         json.dump(export_data, f)        
     print(f"Exported raw matrix weights to: {data_config.model_path_json}")
 
-def evaluate_global_accuracy(model, dataset, num_samples=65_536):
+def evaluate_global_accuracy(model, dataset_tensor, num_samples=65_536):
     model.eval()
     with torch.no_grad():
         indices = torch.randint(0, 256, (num_samples, 3))
         x_test = indices.float() / 255.0
         predictions = model(x_test)
-        truth = dataset[indices[:, 0], indices[:, 1], indices[:, 2]]
+        truth = dataset_tensor[indices[:, 0], indices[:, 1], indices[:, 2]]
         errors = torch.abs(predictions - truth)
         max_error = torch.max(errors).item()
         mean_error = torch.mean(errors).item()
@@ -89,40 +89,44 @@ def train(data_config, dataset):
 
     dataset_tensor = torch.tensor(dataset, dtype=torch.float32)
 
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    criterion = nn.HuberLoss(delta=0.1) #nn.MSELoss()
-    # scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-    #     optimizer, mode='min', factor=0.5, patience=200
-    # )
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10_000)
+    epochs = 100_000
     batch_size = 8_192
+
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    criterion = nn.HuberLoss(delta=0.1)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+
     hard_batch = int(batch_size * 0.2)
     rand_batch = batch_size - hard_batch
 
-    epochs = 100_000
-
     best_loss = float('inf')
+    max_error = 0
+    mean_error = 0
 
     for epoch in range(epochs):
         optimizer.zero_grad()
         
         random_indices = torch.randint(0, 256, (rand_batch, 3))
 
+        model.eval()
         with torch.no_grad():
             large_pool_indices = torch.randint(0, 256, (65_536, 3))
-            x_pool = large_pool_indices.float() / 255.0
-            y_pool_target = dataset_tensor[
+            x_test = large_pool_indices.float() / 255.0
+            truth = dataset_tensor[
                 large_pool_indices[:, 0], 
                 large_pool_indices[:, 1], 
                 large_pool_indices[:, 2]
             ]
 
-            pool_preds = model(x_pool)
+            predictions = model(x_test)
             
-            errors = torch.mean(torch.abs(pool_preds - y_pool_target), dim=1)
-            
+            errors = torch.mean(torch.abs(predictions - truth), dim=1)
+            max_error = torch.max(errors).item()
+            mean_error = torch.mean(errors).item()
+
             worst_indices = torch.topk(errors, hard_batch).indices
             hard_indices = large_pool_indices[worst_indices]
+        model.train()
 
         combined_indices = torch.cat([random_indices, hard_indices], dim=0)
 
@@ -135,9 +139,9 @@ def train(data_config, dataset):
             combined_indices[:, 2]
         ]
         
-        y_pred = model(x_train)
+        y_prediction = model(x_train)
 
-        loss = criterion(y_pred, y_target)
+        loss = criterion(y_prediction, y_target)
         loss.backward()
 
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -150,7 +154,11 @@ def train(data_config, dataset):
             best_loss = current_loss
 
         if epoch % 1000 == 0:
-            print(f"Epoch {epoch} | LR: {optimizer.param_groups[0]['lr']:.2e} | Best Loss: {best_loss:.8f}")
+            print(f"Epoch {epoch} | LR: {optimizer.param_groups[0]['lr']:.2e} | Best Loss: {best_loss:.8f} | Max Error: {max_error:.4f} | Mean Error: {mean_error:.4f}")
+
+    max_error, mean_error = evaluate_global_accuracy(model, dataset_tensor)
+    print(f"Final Training Loss: {best_loss:.8f}")
+    print(f"Global Max Error: {max_error:.6f} | Global Mean Error: {mean_error:.6f}")
 
     export(data_config, model)
 
