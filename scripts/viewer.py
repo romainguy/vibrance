@@ -1,21 +1,22 @@
 import fastplotlib as fpl
 import numpy as np
+import onnxruntime as ort
 import pigments
 import sys
 from PySide6 import QtWidgets, QtCore
 from rendercanvas.auto import RenderCanvas
 
 class LUTVisualizer(QtWidgets.QWidget):
-    def __init__(self, lut):
+    def __init__(self, lut, data_config):
         super().__init__()
         self.lut = lut
         self.setWindowTitle("LUT Visualizer")
         self.resize(800, 800)
 
         self.global_min = 0.0
-        self.global_max = 1.0
+        self.global_max = 255.0
         self.titles = ['Phthalo Blue', 'Quinacridone Magenta', 'Hansa Yellow']
-        self.cmaps = ['Blues', 'Purples', 'YlOrBr']
+        self.cmaps = ['Blues', 'Purples', 'colorbrewer:YlOrBr']
 
         layout = QtWidgets.QVBoxLayout(self)
 
@@ -41,28 +42,46 @@ class LUTVisualizer(QtWidgets.QWidget):
         self.p_slider.setTickInterval(1)
         self.p_slider.valueChanged.connect(self.update_plot)
 
+        self.show_mlp_checkbox = QtWidgets.QCheckBox("Show MLP Output")
+        self.show_mlp_checkbox.stateChanged.connect(self.update_visible_surfaces)
+        self.show_mlp_error_checkbox = QtWidgets.QCheckBox("Show MLP Error")
+        self.show_mlp_error_checkbox.stateChanged.connect(self.update_plot)
+
         slider_layout.addWidget(self.z_label, 0, 0)
         slider_layout.addWidget(self.z_slider, 0, 1)
         slider_layout.addWidget(self.p_label, 1, 0)
         slider_layout.addWidget(self.p_slider, 1, 1)
+        slider_layout.addWidget(self.show_mlp_checkbox, 2, 0)
+        slider_layout.addWidget(self.show_mlp_error_checkbox, 3, 0)
         layout.addLayout(slider_layout)
 
-        initial_z_data = self.lut[:, :, 0, 0]
-        
+        initial_z_data = self.lut[:, :, 0, 0] * 255.0
+
         self.surface = self.fig[0, 0].add_surface(
             data=initial_z_data,
             cmap=self.cmaps[0]
         )
         self.surface.clim = (self.global_min, self.global_max)
+
+        self.session = ort.InferenceSession(data_config.model_path_onnx)
+        self.input_name = self.session.get_inputs()[0].name
+        self.output_name = self.session.get_outputs()[0].name
+
+        self.mlp_data = np.empty((256, 256), dtype=np.float32)
+        self.updateMlpData(0, 0)
+        self.mlp_surface = self.fig[0, 0].add_surface(
+            data=self.mlp_data,
+            cmap="bids:plasma"
+        )
+        self.mlp_surface.clim = (0, 255)
+        self.mlp_surface.visible = False
+
         self.fig[0, 0].title = self.titles[0]
 
-        self.surface.world_object.local.scale = (1, 1, 255)
-
-        max_z_world = self.global_max * 255
         self.fig[0, 0].add_scatter(
             data=np.array([
                 [0, 0, 0], 
-                [255, 255, max_z_world]
+                [255, 255, 255]
             ]),
             alpha=0.0,
             sizes=0
@@ -80,6 +99,30 @@ class LUTVisualizer(QtWidgets.QWidget):
         if event.key() == QtCore.Qt.Key.Key_Escape:
             self.close()
 
+    def updateMlpData(self, z_idx, p_idx):
+        error_mode = self.show_mlp_error_checkbox.isChecked()
+        for r in range(256):
+            for g in range(256):
+                input_data = np.array([[r / 255.0, g / 255.0, z_idx / 255.0]], dtype=np.float32)
+                results = self.session.run([self.output_name], {self.input_name: input_data})
+                v = results[0][0][p_idx] * 255.0
+                if error_mode:
+                    v = abs(v - self.lut[r, g, z_idx, p_idx] * 255.0)
+                self.mlp_data[r][g] = v
+
+    def update_visible_surfaces(self):
+        show_mlp = self.show_mlp_checkbox.isChecked()
+        if not self.surface.visible and not show_mlp:
+            z_idx = self.z_slider.value()
+            p_idx = self.p_slider.value()
+            self.surface.data = self.lut[:, :, z_idx, p_idx] * 255.0
+            self.surface.cmap = self.cmaps[p_idx]
+        if not self.mlp_surface.visible and show_mlp:
+            self.updateMlpData(self.z_slider.value(), self.p_slider.value())
+            self.mlp_surface.data = self.mlp_data
+        self.surface.visible = not show_mlp
+        self.mlp_surface.visible = show_mlp
+
     def update_plot(self):
         z_idx = self.z_slider.value()
         p_idx = self.p_slider.value()
@@ -88,8 +131,13 @@ class LUTVisualizer(QtWidgets.QWidget):
         self.p_label.setText(f"Pigment")
         self.fig[0, 0].title = self.titles[p_idx]
 
-        self.surface.data = self.lut[:, :, z_idx, p_idx]
-        self.surface.cmap = self.cmaps[p_idx]
+        if self.surface.visible:
+            self.surface.data = self.lut[:, :, z_idx, p_idx] * 255.0
+            self.surface.cmap = self.cmaps[p_idx]
+
+        if self.mlp_surface.visible:
+            self.updateMlpData(z_idx, p_idx)
+            self.mlp_surface.data = self.mlp_data
 
 def main():
     data_config = pigments.load_data_config_from_json('data_config.json')
@@ -107,7 +155,7 @@ def main():
         raise ValueError("Expected a 4D array with shape (..., ..., ..., 3).")
 
     app = QtWidgets.QApplication(sys.argv)
-    window = LUTVisualizer(lut)
+    window = LUTVisualizer(lut, data_config)
     window.show()
     window.raise_()
     window.activateWindow()
