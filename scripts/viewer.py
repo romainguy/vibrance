@@ -99,24 +99,24 @@ class LUTVisualizer(QtWidgets.QWidget):
         if event.key() == QtCore.Qt.Key.Key_Escape:
             self.close()
 
-    def updateMlpData(self, z_idx, p_idx):
+    def updateMlpData(self, z_index, p_index):
         error_mode = self.show_mlp_error_checkbox.isChecked()
         for r in range(256):
             for g in range(256):
-                input_data = np.array([[r / 255.0, g / 255.0, z_idx / 255.0]], dtype=np.float32)
+                input_data = np.array([[r / 255.0, g / 255.0, z_index / 255.0]], dtype=np.float32)
                 results = self.session.run([self.output_name], {self.input_name: input_data})
-                v = results[0][0][p_idx] * 255.0
+                v = results[0][0][p_index] * 255.0
                 if error_mode:
-                    v = abs(v - self.lut[r, g, z_idx, p_idx] * 255.0)
+                    v = abs(v - self.lut[r, g, z_index, p_index] * 255.0)
                 self.mlp_data[r][g] = v
 
     def update_visible_surfaces(self):
         show_mlp = self.show_mlp_checkbox.isChecked()
         if not self.surface.visible and not show_mlp:
-            z_idx = self.z_slider.value()
-            p_idx = self.p_slider.value()
-            self.surface.data = self.lut[:, :, z_idx, p_idx] * 255.0
-            self.surface.cmap = self.cmaps[p_idx]
+            z_index = self.z_slider.value()
+            p_index = self.p_slider.value()
+            self.surface.data = self.lut[:, :, z_index, p_index] * 255.0
+            self.surface.cmap = self.cmaps[p_index]
         if not self.mlp_surface.visible and show_mlp:
             self.updateMlpData(self.z_slider.value(), self.p_slider.value())
             self.mlp_surface.data = self.mlp_data
@@ -124,19 +124,19 @@ class LUTVisualizer(QtWidgets.QWidget):
         self.mlp_surface.visible = show_mlp
 
     def update_plot(self):
-        z_idx = self.z_slider.value()
-        p_idx = self.p_slider.value()
+        z_index = self.z_slider.value()
+        p_index = self.p_slider.value()
 
-        self.z_label.setText(f"B Slice: {z_idx}")
+        self.z_label.setText(f"B Slice: {z_index}")
         self.p_label.setText(f"Pigment")
-        self.fig[0, 0].title = self.titles[p_idx]
+        self.fig[0, 0].title = self.titles[p_index]
 
         if self.surface.visible:
-            self.surface.data = self.lut[:, :, z_idx, p_idx] * 255.0
-            self.surface.cmap = self.cmaps[p_idx]
+            self.surface.data = self.lut[:, :, z_index, p_index] * 255.0
+            self.surface.cmap = self.cmaps[p_index]
 
         if self.mlp_surface.visible:
-            self.updateMlpData(z_idx, p_idx)
+            self.updateMlpData(z_index, p_index)
             self.mlp_surface.data = self.mlp_data
 
 def main():
