@@ -15,6 +15,7 @@ def convert_npy_to_png_lut(input_npy_path, output_png_path, grid_size=33):
     lut_downsampled = lut_downsampled[:, :, indices, :]
     
     lut_uint8 = np.clip(lut_downsampled * 255.0, 0, 255).astype(np.uint8)
+    lut_uint8.transpose(1, 0, 2, 3)
 
     z_slices = [lut_uint8[:, :, z, :] for z in range(grid_size)]
     
