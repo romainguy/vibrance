@@ -17,12 +17,16 @@ def load_config_from_json(filepath):
 class DataConfig:
     def __init__(
         self,
+        pigments_K,
+        pigments_S,
         model_path_onnx,
         model_path_json,
         model_path_kotlin,
         lut_path_npy,
         lut_uint8_path_npy
     ):
+        self.pigments_K = pigments_K
+        self.pigments_S = pigments_S
         self.model_path_onnx = model_path_onnx
         self.model_path_json = model_path_json
         self.model_path_kotlin = model_path_kotlin
@@ -404,7 +408,10 @@ class Pigments():
         output_filename_S="data/golden_paints_optimized_S.csv"
     ):
         if self.config.use_optimized_pigments:
-            raise ValueError("Pigments are already optimized. Set use_optimized_pigments to False to run optimization again.")
+            raise ValueError(
+                "Pigments are already optimized. "
+                "Set use_optimized_pigments to False to run optimization again."
+            )
 
         print(f"Optimizing with {self.config.optimization_sample_count} samples per pigment")
 

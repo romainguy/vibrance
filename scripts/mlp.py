@@ -13,19 +13,19 @@ class PositionalEncoding(nn.Module):
         super().__init__()
         self.num_frequencies = num_frequencies
         # Create frequency bands: 2^0, 2^1, ..., 2^(L-1)
-        self.freq_bands = 2.0 ** torch.linspace(0, num_frequencies - 1, num_frequencies)
+        self.bands = 2.0 ** torch.linspace(0, num_frequencies - 1, num_frequencies)
 
     def forward(self, x):
         # Baseline
         encoded = [x]
-        for freq in self.freq_bands:
+        for freq in self.bands:
             encoded.append(torch.sin(x * freq * torch.pi))
             encoded.append(torch.cos(x * freq * torch.pi))
             
         return torch.cat(encoded, dim=-1)
 
 class PigmentsMLP(nn.Module):
-    def __init__(self, num_frequencies=6, hidden_dim=32):
+    def __init__(self, num_frequencies=4, hidden_dim=32):
         super().__init__()
         self.pe = PositionalEncoding(num_frequencies)
 
@@ -63,7 +63,7 @@ def export(data_config, model):
 
     # Export to JSON
     export_data = {}
-    export_data["pe_freqs"] = model.pe.freq_bands.detach().cpu().numpy().tolist()
+    export_data["pe_freqs"] = model.pe.bands.detach().cpu().numpy().tolist()
     for name, param in model.named_parameters():
         export_data[name] = param.detach().cpu().numpy().tolist()
     with open(data_config.model_path_json, "w") as f:
@@ -196,7 +196,7 @@ def automated_search(dataset_tensor):
             best_loss = float('inf')
 
             model.train()
-            for _ in range(80_000):
+            for _ in range(40_000):
                 optimizer.zero_grad()
                 random_indices = torch.randint(0, 256, (8_192, 3))
 
