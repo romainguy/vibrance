@@ -75,7 +75,7 @@ To train the MLP:
   0..1 range).
 - Run `mlp.py train` to start the training process.
 
-> [!INFO]
+> [!NOTE]
 > The trained MLP will be exported in two formats in the `data/` directory: as a pair of
 > ONNX files, and as a single JSON file.
 
