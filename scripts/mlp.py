@@ -1,5 +1,4 @@
 import json
-from pyexpat import model
 import numpy as np
 import onnxruntime as ort
 import pigments
