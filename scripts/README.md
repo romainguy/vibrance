@@ -108,7 +108,19 @@ file, called `test/PigmentsModelWeights.kt` by default. This file stores the wei
 biases of the model as flat arrays of float directly in a Kotlin object to remove the need
 to parse a file at runtime.
 
-## 6. Jupyter Notebook
+## 6. Downsampling and Converting the 3D LUT
+
+If using a lookup table is more desirable than running an LMP, you can use the script
+`lut_to_png.py` to conver the Numpy LUT to a PNG file. By default, the generated PNG
+will encode a 33x33x33 LUT, where all the Z slices are stored side-by-side. You can pass
+the desired size as a parameter to the script. For instance, `lut_to_png.py 65` to
+generate a 65x65x65 LUT.
+
+> [!NOTE]
+> This script will also downsample the stored values (the concentrations) from fp16 to
+> uint8, encurring a loss of precision in the process.
+
+## 7. Jupyter Notebook
 
 The notebook in `Paint Mixing.ipynb` was the original implementation of the scripts
 detailed above. It nows contains a simple visualization of various color ramps through
