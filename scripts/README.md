@@ -101,6 +101,8 @@ The UI has several controls:
 - A checkbox to show the MLP or the 3D LUT.
 - A checkbox to display the absolute error between the MLP and the 3D LUT.
 
+![LUT and MLP viewer](images/viewer.png)
+
 ## 5. Converting the MLP to Kotlin
 
 The script `model_json_to_kt.py` converts the JSON export of the MLP to a Kotlin source
@@ -125,3 +127,5 @@ generate a 65x65x65 LUT.
 The notebook in `Paint Mixing.ipynb` was the original implementation of the scripts
 detailed above. It nows contains a simple visualization of various color ramps through
 the pigments mixing process.
+
+![Notebook Ramps](images/notebook_ramps.png)
