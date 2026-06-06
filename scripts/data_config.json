@@ -1,4 +1,6 @@
 {
+    "pigments_K": "data/golden_paints_K.csv",
+    "pigments_S": "data/golden_paints_S.csv",
     "model_path_onnx": "data/pigments_mlp.onnx",
     "model_path_json": "data/pigments_mlp.json",
     "model_path_kotlin": "test/PigmentsModelWeights.kt",
