@@ -1,81 +1,120 @@
+import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.system.measureNanoTime
 
-class PigmentsModel(
-    private val peFreqs: FloatArray = PigmentsModelWeights.peFreqs,
-    private val layer0Weights: FloatArray = PigmentsModelWeights.net0Weight,
-    private val layer0Bias: FloatArray = PigmentsModelWeights.net0Bias,
-    private val layer2Weights: FloatArray = PigmentsModelWeights.net2Weight,
-    private val layer2Bias: FloatArray = PigmentsModelWeights.net2Bias,
-    private val layer4Weights: FloatArray = PigmentsModelWeights.net4Weight,
+private const val INV_TWO_PI = (1.0 / (2.0 * Math.PI)).toFloat()
+
+@Suppress("NOTHING_TO_INLINE")
+private inline fun isLeftHalf(angleRadians: Float): Boolean {
+    val turns = angleRadians * INV_TWO_PI
+    val fractionalTurn = turns - floor(turns)
+    return abs(fractionalTurn - 0.5f) < 0.25f
+}
+
+@Suppress("NOTHING_TO_INLINE")
+private inline fun Boolean.toInt() = if (this) 1 else 0
+
+@Suppress("NOTHING_TO_INLINE")
+private inline fun cosFromSin(angleRadians: Float, sinValue: Float): Float {
+    return Float.fromBits((isLeftHalf(angleRadians).toInt() shl 31) or
+            sqrt(1.0f - sinValue * sinValue).toRawBits())
+}
+
+class PigmentsModel() {
+    private val peFreqs: FloatArray = PigmentsModelWeights.peFreqs
+    private val layer0Weights: FloatArray = PigmentsModelWeights.net0Weight
+    private val layer0Bias: FloatArray = PigmentsModelWeights.net0Bias
+    private val layer2Weights: FloatArray = PigmentsModelWeights.net2Weight
+    private val layer2Bias: FloatArray = PigmentsModelWeights.net2Bias
+    private val layer4Weights: FloatArray = PigmentsModelWeights.net4Weight
     private val layer4Bias: FloatArray = PigmentsModelWeights.net4Bias
-) {
-    private val encodedSize = 3 + (3 * 2 * peFreqs.size)
-    private val l0Out = layer0Bias.size
-    private val l2Out = layer2Bias.size
-    private val l4Out = layer4Bias.size
 
     // Pre-allocate working buffers
-    private val encodedBuffer = FloatArray(encodedSize)
-    private val h1Buffer = FloatArray(l0Out)
-    private val h2Buffer = FloatArray(l2Out)
-    private val outBuffer = FloatArray(l4Out)
+    private val encodedBuffer = FloatArray(3 + (3 * 2 * peFreqs.size))
+    private val h1Buffer = FloatArray(layer0Bias.size)
+    private val h2Buffer = FloatArray(layer2Bias.size)
+    private val outBuffer = FloatArray(layer4Bias.size)
 
-    private fun linearLayer(
+    init {
+        // Pre-multiply frequencies by PI to save some instructions in
+        // encodePosition()
+        for (i in peFreqs.indices) {
+            peFreqs[i] *= Math.PI.toFloat()
+        }
+    }
+
+    private fun linearLayerReLU(
         input: FloatArray,
-        inputSize: Int,
         weights: FloatArray,
         bias: FloatArray,
         output: FloatArray,
-        outputSize: Int
     ) {
-        for (i in 0 until outputSize) {
+        val inputSize = input.size
+        val outputSize = output.size
+
+        // Eliminite OOBs on Android
+        if (outputSize > bias.size) return
+        if (inputSize * outputSize > weights.size) return
+
+        for (i in 0 until output.size) {
             var sum = bias[i]
             val row = i * inputSize
             for (j in 0 until inputSize) {
                 sum += input[j] * weights[row + j]
             }
-            output[i] = sum
+            // Apply the ReLU activation function on write-out
+            output[i] = max(0.0f, sum)
         }
     }
 
-    private fun encodePosition(r: Float, g: Float, b: Float) {
+    @Suppress("NOTHING_TO_INLINE")
+    private inline fun encodePosition(r: Float, g: Float, b: Float) {
         val buffer = encodedBuffer
         buffer[0] = r
         buffer[1] = g
         buffer[2] = b
 
-        val pi = Math.PI.toFloat()
-
         var index = 3
         for (freq in peFreqs) {
-            val factor = freq * pi
-            buffer[index++] = sin(r * factor)
-            buffer[index++] = sin(g * factor)
-            buffer[index++] = sin(b * factor)
-            
-            buffer[index++] = cos(r * factor)
-            buffer[index++] = cos(g * factor)
-            buffer[index++] = cos(b * factor)
+// TODO: Measure on Android
+//           buffer[index++] = sin(r * freq)
+//           buffer[index++] = sin(g * freq)
+//           buffer[index++] = sin(b * freq)
+//           
+//           buffer[index++] = cos(r * freq)
+//           buffer[index++] = cos(g * freq)
+//           buffer[index++] = cos(b * freq)
+            val rf = r * freq
+            val gf = g * freq
+            val bf = b * freq
+            val sr = sin(rf)
+            val sg = sin(gf)
+            val sb = sin(bf)
+            buffer[index++] = sr
+            buffer[index++] = sg
+            buffer[index++] = sb
+            buffer[index++] = cosFromSin(rf, sr)
+            buffer[index++] = cosFromSin(gf, sg)
+            buffer[index++] = cosFromSin(bf, sb)
         }
     }
 
     fun predict(r: Float, g: Float, b: Float): FloatArray {
         encodePosition(r, g, b)
 
-        linearLayer(encodedBuffer, encodedSize, layer0Weights, layer0Bias, h1Buffer, l0Out)
-        for (i in 0 until l0Out) h1Buffer[i] = max(0f, h1Buffer[i])
-
-        linearLayer(h1Buffer, l0Out, layer2Weights, layer2Bias, h2Buffer, l2Out)
-        for (i in 0 until l2Out) h2Buffer[i] = max(0f, h2Buffer[i])
-
-        linearLayer(h2Buffer, l2Out, layer4Weights, layer4Bias, outBuffer, l4Out)
+        // Combine linear layer + ReLU step to reduce instruction count
+        linearLayerReLU(encodedBuffer, layer0Weights, layer0Bias, h1Buffer)
+        linearLayerReLU(h1Buffer, layer2Weights, layer2Bias, h2Buffer)
+        linearLayerReLU(h2Buffer, layer4Weights, layer4Bias, outBuffer)
 
         // Saturate
-        for (i in outBuffer.indices) outBuffer[i] = min(max(0f, outBuffer[i]), 1.0f)
+        // linearLayerReLU() already does max(0, v)
+        for (i in outBuffer.indices) outBuffer[i] = min(outBuffer[i], 1.0f)
 
         return outBuffer
     }
