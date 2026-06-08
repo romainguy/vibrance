@@ -1,10 +1,11 @@
+
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.system.measureNanoTime
 
-class PigmentsModel() {
+class PigmentsModel {
     private val peFreqs: FloatArray = PigmentsModelWeights.peFreqs
     private val layer0Weights: FloatArray = PigmentsModelWeights.net0Weight
     private val layer0Bias: FloatArray = PigmentsModelWeights.net0Bias
@@ -47,15 +48,11 @@ class PigmentsModel() {
                 sum += input[j] * weights[row + j]
             }
             // Apply the ReLU activation function on write-out
-            // This allows us to avoid looping over the output arrays
-            // a second time (except for the last one, but it's only
-            // an array of 3 values)
             output[i] = max(0.0f, sum)
         }
     }
 
-    @Suppress("NOTHING_TO_INLINE")
-    private inline fun encodePosition(r: Float, g: Float, b: Float) {
+    private fun encodePosition(r: Float, g: Float, b: Float) {
         val buffer = encodedBuffer
         buffer[0] = r
         buffer[1] = g
@@ -63,13 +60,13 @@ class PigmentsModel() {
 
         var index = 3
         for (freq in peFreqs) {
-            buffer[index++] = sin(r * freq)
-            buffer[index++] = sin(g * freq)
-            buffer[index++] = sin(b * freq)
+           buffer[index++] = sin(r * freq)
+           buffer[index++] = sin(g * freq)
+           buffer[index++] = sin(b * freq)
 
-            buffer[index++] = cos(r * freq)
-            buffer[index++] = cos(g * freq)
-            buffer[index++] = cos(b * freq)
+           buffer[index++] = cos(r * freq)
+           buffer[index++] = cos(g * freq)
+           buffer[index++] = cos(b * freq)
         }
     }
 
