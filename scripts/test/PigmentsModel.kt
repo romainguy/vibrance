@@ -6,7 +6,7 @@ import kotlin.system.measureNanoTime
 
 class PigmentsModel {
     private val positionalEncodingFrequencies: FloatArray =
-        PigmentsModelWeights.positionalEncodingFrequencies
+            PigmentsModelWeights.positionalEncodingFrequencies
     private val layer0Weights: FloatArray = PigmentsModelWeights.net0Weight
     private val layer0Bias: FloatArray = PigmentsModelWeights.net0Bias
     private val layer2Weights: FloatArray = PigmentsModelWeights.net2Weight
@@ -61,6 +61,7 @@ class PigmentsModel {
             buffer[index++] = cos(g * frequency)
             buffer[index++] = cos(b * frequency)
 
+            // NOTE: This assumes the frequencies are powers of 2
             frequency *= 2.0f
         }
     }

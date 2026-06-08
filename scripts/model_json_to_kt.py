@@ -22,7 +22,6 @@ def array_1d_to_kt(array, indent_level):
     return f"floatArrayOf(\n{body}\n{indent})"
 
 def inner_array_1d_to_kt(array, indent_level):
-    indent = "    " * indent_level
     inner_indent = "    " * (indent_level + 1)
     
     floats = [format_float(x) for x in array]
