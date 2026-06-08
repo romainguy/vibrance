@@ -1,29 +1,8 @@
-import kotlin.math.abs
 import kotlin.math.cos
-import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
-import kotlin.math.sqrt
 import kotlin.system.measureNanoTime
-
-private const val INV_TWO_PI = (1.0 / (2.0 * Math.PI)).toFloat()
-
-@Suppress("NOTHING_TO_INLINE")
-private inline fun isLeftHalf(angleRadians: Float): Boolean {
-    val turns = angleRadians * INV_TWO_PI
-    val fractionalTurn = turns - floor(turns)
-    return abs(fractionalTurn - 0.5f) < 0.25f
-}
-
-@Suppress("NOTHING_TO_INLINE")
-private inline fun Boolean.toInt() = if (this) 1 else 0
-
-@Suppress("NOTHING_TO_INLINE")
-private inline fun cosFromSin(angleRadians: Float, sinValue: Float): Float {
-    return Float.fromBits((isLeftHalf(angleRadians).toInt() shl 31) or
-            sqrt(1.0f - sinValue * sinValue).toRawBits())
-}
 
 class PigmentsModel() {
     private val peFreqs: FloatArray = PigmentsModelWeights.peFreqs
@@ -57,17 +36,20 @@ class PigmentsModel() {
         val inputSize = input.size
         val outputSize = output.size
 
-        // Eliminite OOBs on Android
+        // Eliminate OOBs on Android
         if (outputSize > bias.size) return
         if (inputSize * outputSize > weights.size) return
 
-        for (i in 0 until output.size) {
+        for (i in output.indices) {
             var sum = bias[i]
             val row = i * inputSize
             for (j in 0 until inputSize) {
                 sum += input[j] * weights[row + j]
             }
             // Apply the ReLU activation function on write-out
+            // This allows us to avoid looping over the output arrays
+            // a second time (except for the last one, but it's only
+            // an array of 3 values)
             output[i] = max(0.0f, sum)
         }
     }
@@ -81,26 +63,13 @@ class PigmentsModel() {
 
         var index = 3
         for (freq in peFreqs) {
-// TODO: Measure on Android
-//           buffer[index++] = sin(r * freq)
-//           buffer[index++] = sin(g * freq)
-//           buffer[index++] = sin(b * freq)
-//           
-//           buffer[index++] = cos(r * freq)
-//           buffer[index++] = cos(g * freq)
-//           buffer[index++] = cos(b * freq)
-            val rf = r * freq
-            val gf = g * freq
-            val bf = b * freq
-            val sr = sin(rf)
-            val sg = sin(gf)
-            val sb = sin(bf)
-            buffer[index++] = sr
-            buffer[index++] = sg
-            buffer[index++] = sb
-            buffer[index++] = cosFromSin(rf, sr)
-            buffer[index++] = cosFromSin(gf, sg)
-            buffer[index++] = cosFromSin(bf, sb)
+            buffer[index++] = sin(r * freq)
+            buffer[index++] = sin(g * freq)
+            buffer[index++] = sin(b * freq)
+
+            buffer[index++] = cos(r * freq)
+            buffer[index++] = cos(g * freq)
+            buffer[index++] = cos(b * freq)
         }
     }
 
