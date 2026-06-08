@@ -26,7 +26,7 @@ class PositionalEncoding(nn.Module):
 class PigmentsMLP(nn.Module):
     def __init__(self, num_frequencies=4, hidden_dim=32):
         super().__init__()
-        self.pe = PositionalEncoding(num_frequencies)
+        self.positional_encoding = PositionalEncoding(num_frequencies)
 
         # Calculate input dimension: 
         # 3 (raw RGB) + (3 channels * 2 (sin/cos) * num_frequencies)
@@ -41,7 +41,7 @@ class PigmentsMLP(nn.Module):
         )
 
     def forward(self, x):
-        x_encoded = self.pe(x)
+        x_encoded = self.positional_encoding(x)
         return self.net(x_encoded)
 
 def export(data_config, model):
@@ -62,7 +62,7 @@ def export(data_config, model):
 
     # Export to JSON
     export_data = {}
-    export_data["pe_freqs"] = model.pe.bands.detach().cpu().numpy().tolist()
+    export_data["positional_encoding_frequencies"] = model.positional_encoding.bands.detach().cpu().numpy().tolist()
     for name, param in model.named_parameters():
         export_data[name] = param.detach().cpu().numpy().tolist()
     with open(data_config.model_path_json, "w") as f:

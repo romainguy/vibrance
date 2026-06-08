@@ -1,5 +1,5 @@
 internal object PigmentsModelWeights {
-    val peFreqs: FloatArray = floatArrayOf(1.0f, 2.0f, 4.0f, 8.0f)
+    val positionalEncodingFrequencies: FloatArray = floatArrayOf(1.0f, 2.0f, 4.0f, 8.0f)
 
     val net0Weight: FloatArray = floatArrayOf(
         -0.007612031418830156f, -0.10403408855199814f, 0.10979672521352768f, 0.09970363229513168f, 0.10361957550048828f, 0.1475236713886261f, -0.0428258553147316f, 0.05990741774439812f,
