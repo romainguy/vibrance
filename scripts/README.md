@@ -64,8 +64,9 @@ Instead, we train a small MLP to approximate our 3D LUT numerically. This MLP co
 of 3 layers of 32 neurons, using 4 frequency bands for its positional encoding, for a
 total of 2,051 parameters.
 
-The Kotlin inference of our small MLP takes ~30µs on a MacBook Pro M5 Max
-(single-threaded), in cold execution (no AOT/JIT/etc.).
+The Kotlin inference of our small MLP takes ~500ns on a MacBook Pro M5 Max
+(single-threaded), after warmup. On a Google Pixel 6, in release mode, the MLP runs in
+about 3.1µs.
 
 To train the MLP:
 - Generate the 3D LUT as explained in the previous section.
