@@ -1,4 +1,3 @@
-
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
@@ -6,7 +5,8 @@ import kotlin.math.sin
 import kotlin.system.measureNanoTime
 
 class PigmentsModel {
-    private val peFreqs: FloatArray = PigmentsModelWeights.peFreqs
+    private val positionalEncodingFrequencies: FloatArray =
+        PigmentsModelWeights.positionalEncodingFrequencies
     private val layer0Weights: FloatArray = PigmentsModelWeights.net0Weight
     private val layer0Bias: FloatArray = PigmentsModelWeights.net0Bias
     private val layer2Weights: FloatArray = PigmentsModelWeights.net2Weight
@@ -15,18 +15,10 @@ class PigmentsModel {
     private val layer4Bias: FloatArray = PigmentsModelWeights.net4Bias
 
     // Pre-allocate working buffers
-    private val encodedBuffer = FloatArray(3 + (3 * 2 * peFreqs.size))
+    private val encodedBuffer = FloatArray(3 + (3 * 2 * positionalEncodingFrequencies.size))
     private val h1Buffer = FloatArray(layer0Bias.size)
     private val h2Buffer = FloatArray(layer2Bias.size)
     private val outBuffer = FloatArray(layer4Bias.size)
-
-    init {
-        // Pre-multiply frequencies by PI to save some instructions in
-        // encodePosition()
-        for (i in peFreqs.indices) {
-            peFreqs[i] *= Math.PI.toFloat()
-        }
-    }
 
     private fun linearLayerReLU(
         input: FloatArray,
@@ -59,14 +51,17 @@ class PigmentsModel {
         buffer[2] = b
 
         var index = 3
-        for (freq in peFreqs) {
-           buffer[index++] = sin(r * freq)
-           buffer[index++] = sin(g * freq)
-           buffer[index++] = sin(b * freq)
+        var frequency = Math.PI.toFloat()
+        for (i in positionalEncodingFrequencies.indices) {
+            buffer[index++] = sin(r * frequency)
+            buffer[index++] = sin(g * frequency)
+            buffer[index++] = sin(b * frequency)
 
-           buffer[index++] = cos(r * freq)
-           buffer[index++] = cos(g * freq)
-           buffer[index++] = cos(b * freq)
+            buffer[index++] = cos(r * frequency)
+            buffer[index++] = cos(g * frequency)
+            buffer[index++] = cos(b * frequency)
+
+            frequency *= 2.0f
         }
     }
 
