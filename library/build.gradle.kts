@@ -12,12 +12,11 @@ version = "0.1.0"
 kotlin {
     jvm()
 
-    linuxX64()
     linuxArm64()
     macosArm64()
 
     androidLibrary {
-        namespace = "org.jetbrains.kotlinx.multiplatform.library.template"
+        namespace = "dev.romainguy.vibrance"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
 

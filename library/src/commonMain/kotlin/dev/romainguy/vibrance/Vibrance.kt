@@ -10,8 +10,9 @@ import kotlin.math.sqrt
 
 class Vibrance {
     internal val model = PigmentsModel()
-    internal val latent = FloatArray(7)
+    internal val latent0 = FloatArray(3)
 
+    @Suppress("DuplicatedCode")
     fun lerp(
         redSrc: Float,
         greenSrc: Float,
@@ -23,23 +24,49 @@ class Vibrance {
         color: FloatArray = FloatArray(3),
         offset: Int = 0
     ): FloatArray {
-        val latent = latent
+        val latent = latent0
 
         // Source
         model.predict(redSrc, greenSrc, blueSrc, latent)
-        latent[3] = 1.0f - (latent[0] + latent[1] + latent[2])
-        // TODO: mix pigments and find remainder
+        val latent0Src = latent[0]
+        val latent1Src = latent[1]
+        val latent2Src = latent[2]
+        val latent3Src = 1.0f - (latent0Src + latent1Src + latent2Src)
+
+        mix(latent0Src, latent1Src, latent2Src, latent3Src, color, offset)
+        val rSrc = redSrc - color[offset]
+        val gSrc = greenSrc - color[offset + 1]
+        val bSrc = blueSrc - color[offset + 2]
 
         // Destination
         model.predict(redDst, greenDst, blueDst, latent)
-        latent[3] = 1.0f - (latent[0] + latent[1] + latent[2])
-        // TODO: mix pigments and find remainder
+        val latent0Dst = latent[0]
+        val latent1Dst = latent[1]
+        val latent2Dst = latent[2]
+        val latent3Dst = 1.0f - (latent0Dst + latent1Dst + latent2Dst)
 
-        // TODO: interpolate latent spaces, and mix back to sRGB
+        mix(latent0Dst, latent1Dst, latent2Dst, latent3Dst, color, offset)
+        val rDst = redDst - color[offset]
+        val gDst = greenDst - color[offset + 1]
+        val bDst = blueDst - color[offset + 2]
+
+        mix(
+            lerp(latent0Src, latent0Dst, t),
+            lerp(latent1Src, latent1Dst, t),
+            lerp(latent2Src, latent2Dst, t),
+            lerp(latent3Src, latent3Dst, t),
+            color,
+            offset
+        )
+
+        color[0] = (color[0] + lerp(rSrc, rDst, t)).fastCoerceIn(0.0f, 1.0f)
+        color[1] = (color[1] + lerp(gSrc, gDst, t)).fastCoerceIn(0.0f, 1.0f)
+        color[2] = (color[2] + lerp(bSrc, bDst, t)).fastCoerceIn(0.0f, 1.0f)
+
         return color
     }
 
-    internal fun mix(
+    fun mix(
         c0: Float,
         c1: Float,
         c2: Float,

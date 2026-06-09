@@ -246,13 +246,13 @@ class Pigments():
         c = (1 - t) * c1 + t * c2
         r = (1 - t) * r1 + t * r2
 
-        return self.mix(c) + r
+        return np.clip(self.mix(c) + r, 0, 1)
 
     def latent_lerp(self, c1, r1, c2, r2, t):
         c = (1 - t) * c1 + t * c2
         r = (1 - t) * r1 + t * r2
 
-        return self.mix(c) + r
+        return np.clip(self.mix(c) + r, 0, 1)
 
     def __generate_boundary_samples(self, steps=256):
         x = torch.arange(steps + 1, device=self.device, dtype=torch.float32)
