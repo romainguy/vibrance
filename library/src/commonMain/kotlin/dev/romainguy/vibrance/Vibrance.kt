@@ -39,7 +39,14 @@ class Vibrance {
         return color
     }
 
-    internal fun mix(c0: Float, c1: Float, c2: Float, c3: Float, color: FloatArray = FloatArray(3)): FloatArray {
+    internal fun mix(
+        c0: Float,
+        c1: Float,
+        c2: Float,
+        c3: Float,
+        color: FloatArray = FloatArray(3),
+        offset: Int = 0
+    ): FloatArray {
         val K0 = K[0]
         val K1 = K[1]
         val K2 = K[2]
@@ -92,9 +99,9 @@ class Vibrance {
         val linearG = -0.9689f * x + 1.8758f * y + 0.0415f * z
         val linearB =  0.0557f * x - 0.2040f * y + 1.0570f * z
 
-        color[0] = eotfSrgb(linearR).fastCoerceIn(0.0f, 1.0f)
-        color[1] = eotfSrgb(linearG).fastCoerceIn(0.0f, 1.0f)
-        color[2] = eotfSrgb(linearB).fastCoerceIn(0.0f, 1.0f)
+        color[offset    ] = eotfSrgb(linearR).fastCoerceIn(0.0f, 1.0f)
+        color[offset + 1] = eotfSrgb(linearG).fastCoerceIn(0.0f, 1.0f)
+        color[offset + 2] = eotfSrgb(linearB).fastCoerceIn(0.0f, 1.0f)
 
         return color
     }
