@@ -493,3 +493,51 @@ def _psi_oklab(rgb):
     oklab = torch.matmul(lms_cubed, m2.T)
 
     return oklab
+
+
+def _ndarray_to_kotlin(arr: np.ndarray, val_name: str = "myArray") -> str:
+    if np.issubdtype(arr.dtype, np.floating):
+        if arr.dtype == np.float32:
+            kt_type = "Float"
+            kt_array_func = "floatArrayOf"
+            suffix = "f"
+        else:
+            kt_type = "Double"
+            kt_array_func = "doubleArrayOf"
+            suffix = ""
+    elif np.issubdtype(arr.dtype, np.integer):
+        kt_type = "Int"
+        kt_array_func = "intArrayOf"
+        suffix = ""
+    elif np.issubdtype(arr.dtype, np.bool_):
+        kt_type = "Boolean"
+        kt_array_func = "booleanArrayOf"
+        suffix = ""
+    else:
+        raise ValueError(f"Unsupported dtype: {arr.dtype}")
+
+    def format_element(x):
+        if kt_type == "Boolean":
+            return str(x).lower()
+        elif kt_type in ["Double", "Float"]:
+            s = str(x)
+            # Ensure floating points always have a decimal so Kotlin parses them correctly
+            if "." not in s and "e" not in s.lower() and "nan" not in s.lower():
+                s += ".0"
+            return s + suffix
+        return str(x)
+
+    def build_string(current_arr, depth):
+        indent = "    " * depth
+        if current_arr.ndim == 1:
+            elements = ", ".join(format_element(x) for x in current_arr)
+            return f"{indent}{kt_array_func}({elements})"
+        else:
+            inner_strings = [build_string(sub, depth + 1) for sub in current_arr]
+            joined_inner = ",\n".join(inner_strings)
+            return f"{indent}arrayOf(\n{joined_inner}\n{indent})"
+
+    type_signature = f"{kt_type}Array" if arr.ndim == 1 else "Array<" * (arr.ndim - 1) + f"{kt_type}Array" + ">" * (arr.ndim - 1)
+
+    array_body = build_string(arr, 0).lstrip()
+    return f"val {val_name}: {type_signature} = {array_body}"

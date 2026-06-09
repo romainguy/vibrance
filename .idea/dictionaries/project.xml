@@ -2,8 +2,8 @@
   <dictionary name="project">
     <words>
       <w>Numpy</w>
+      <w>eotf</w>
       <w>sRGB</w>
-      <w>srgb</w>
     </words>
   </dictionary>
 </component>
