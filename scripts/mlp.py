@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, num_frequencies=6):
+    def __init__(self, num_frequencies=4):
         super().__init__()
         self.num_frequencies = num_frequencies
         # Create frequency bands: 2^0, 2^1, ..., 2^(L-1)

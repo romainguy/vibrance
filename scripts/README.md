@@ -11,7 +11,7 @@ The scripts used two different configuration files:
 - `config.json`: Configuration for `pigments.py`. See the documentation of `PigmentsConfig`
   for more information about the different options.
 
-## Prepaing the Execution Environment
+## Preparing the Execution Environment
 
 To install all the necessary dependencies for the scripts mentioned below, you can run
 `create_venv.sh`. This will create a Python virtual environment in `.venv` that you will
@@ -86,9 +86,9 @@ To train the MLP:
 
 ## 4. Testing the MLP
 
-To quickly test the trained MLP you can use the same Pyton script: `mlp.py query R G B`.
+To quickly test the trained MLP you can use the same Python script: `mlp.py query R G B`.
 
-Where R, G, and B are values in the 0..255 range. The script will comapre the output of the
+Where R, G, and B are values in the 0..255 range. The script will compare the output of the
 MLP with the ground truth from the 3D LUT.
 
 > [!TIP]
@@ -107,26 +107,26 @@ The UI has several controls:
 ## 5. Converting the MLP to Kotlin
 
 The script `model_json_to_kt.py` converts the JSON export of the MLP to a Kotlin source
-file, called `test/PigmentsModelWeights.kt` by default. This file stores the weights and
-biases of the model as flat arrays of float directly in a Kotlin object to remove the need
-to parse a file at runtime.
+file, called `PigmentsModelWeights.kt` by default. This file stores the weights and biases
+of the model as flat arrays of float directly in a Kotlin object to remove the need  to
+parse a file at runtime.
 
 ## 6. Downsampling and Converting the 3D LUT
 
 If using a lookup table is more desirable than running an LMP, you can use the script
-`lut_to_png.py` to conver the Numpy LUT to a PNG file. By default, the generated PNG
+`lut_to_png.py` to convert the Numpy LUT to a PNG file. By default, the generated PNG
 will encode a 33x33x33 LUT, where all the Z slices are stored side-by-side. You can pass
 the desired size as a parameter to the script. For instance, `lut_to_png.py 65` to
 generate a 65x65x65 LUT.
 
 > [!NOTE]
 > This script will also downsample the stored values (the concentrations) from fp16 to
-> uint8, encurring a loss of precision in the process.
+> uint8, incurring a loss of precision in the process.
 
 ## 7. Jupyter Notebook
 
 The notebook in `Paint Mixing.ipynb` was the original implementation of the scripts
-detailed above. It nows contains a simple visualization of various color ramps through
+detailed above. It now contains a simple visualization of various color ramps through
 the pigments mixing process.
 
 ![Notebook Ramps](images/notebook_ramps.png)
