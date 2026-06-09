@@ -70,7 +70,7 @@ internal class PigmentsModel {
 
         var index = 3
         var frequency = PI
-        positionalEncodingFrequencies.indices.forEach { _ ->
+        repeat(positionalEncodingFrequencies.size) {
             buffer[index++] = sin(r * frequency)
             buffer[index++] = sin(g * frequency)
             buffer[index++] = sin(b * frequency)
