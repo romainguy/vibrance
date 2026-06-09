@@ -1,10 +1,29 @@
+package dev.romainguy.vibrance
+
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
-import kotlin.system.measureNanoTime
 
-class PigmentsModel {
+private const val PI: Float = 3.1415927f
+
+/**
+ * A Multi-Layer Perceptron that can upsample an input sRGB color to a set of pigment
+ * concentrations. These concentrations are used to build a representation of the
+ * input color in a 7D latent space.
+ *
+ * This MLP has a simple architecture:
+ * - Input: 3 floats (R, G, B)
+ * - 3 hidden layers with 32 neurons
+ * - ReLU activation
+ * - Output: 3 floats (pigment concentration 1, 2, 3)
+ *
+ * The input values must be in the [0..1] range.
+ * The output of the MLP is 3 values in the [0..1] range.
+ *
+ * Note: this class is not thread-safe. It is however cheap to allocate per thread.
+ */
+internal class PigmentsModel {
     private val positionalEncodingFrequencies: FloatArray =
             PigmentsModelWeights.positionalEncodingFrequencies
     private val layer0Weights: FloatArray = PigmentsModelWeights.net0Weight
@@ -18,7 +37,6 @@ class PigmentsModel {
     private val encodedBuffer = FloatArray(3 + (3 * 2 * positionalEncodingFrequencies.size))
     private val h1Buffer = FloatArray(layer0Bias.size)
     private val h2Buffer = FloatArray(layer2Bias.size)
-    private val outBuffer = FloatArray(layer4Bias.size)
 
     private fun linearLayerReLU(
         input: FloatArray,
@@ -51,8 +69,8 @@ class PigmentsModel {
         buffer[2] = b
 
         var index = 3
-        var frequency = Math.PI.toFloat()
-        for (i in positionalEncodingFrequencies.indices) {
+        var frequency = PI
+        positionalEncodingFrequencies.indices.forEach { _ ->
             buffer[index++] = sin(r * frequency)
             buffer[index++] = sin(g * frequency)
             buffer[index++] = sin(b * frequency)
@@ -66,38 +84,30 @@ class PigmentsModel {
         }
     }
 
-    fun predict(r: Float, g: Float, b: Float): FloatArray {
+    /**
+     * Predicts the pigment concentrations for the given sRGB input. The values output
+     * by this method are always in the range 0 to 1.
+     *
+     * @param r The red component of the input color, between 0 and 1.
+     * @param g The green component of the input color, between 0 and 1.
+     * @param b The blue component of the input color, between 0 and 1
+     * @param concentrations The array where the output concentrations will
+     *   be written, starting at index 0. The array must be of at least size 3.
+     */
+    fun predict(r: Float, g: Float, b: Float, concentrations: FloatArray): FloatArray {
         encodePosition(r, g, b)
 
         // Combine linear layer + ReLU step to reduce instruction count
         linearLayerReLU(encodedBuffer, layer0Weights, layer0Bias, h1Buffer)
         linearLayerReLU(h1Buffer, layer2Weights, layer2Bias, h2Buffer)
-        linearLayerReLU(h2Buffer, layer4Weights, layer4Bias, outBuffer)
+        linearLayerReLU(h2Buffer, layer4Weights, layer4Bias, concentrations)
 
         // Saturate
         // linearLayerReLU() already does max(0, v)
-        for (i in outBuffer.indices) outBuffer[i] = min(outBuffer[i], 1.0f)
+        concentrations[0] = min(concentrations[0], 1.0f)
+        concentrations[1] = min(concentrations[1], 1.0f)
+        concentrations[2] = min(concentrations[2], 1.0f)
 
-        return outBuffer
+        return concentrations
     }
-}
-
-fun main(args: Array<String>) {
-    if (args.size != 3) {
-        println("Usage: PigmentsModel <r> <g> <b>")
-        println("Values between 0.0 and 1.0")
-        return
-    }
-    val model = PigmentsModel()
-
-    val r = args[0].toInt() / 255.0f
-    val g = args[1].toInt() / 255.0f
-    val b = args[2].toInt() / 255.0f
-
-    val pigments: FloatArray
-    val time = measureNanoTime {
-        pigments = model.predict(r, g, b)
-    }
-    println("Predicted output for RGB($r, $g, $b): ${pigments.joinToString(", ")}")
-    println("Prediction time: $time ns")
 }

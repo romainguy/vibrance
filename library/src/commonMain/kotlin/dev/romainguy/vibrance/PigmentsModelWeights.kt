@@ -1,3 +1,7 @@
+@file:Suppress("FloatingPointLiteralPrecision")
+
+package dev.romainguy.vibrance
+
 internal object PigmentsModelWeights {
     val positionalEncodingFrequencies: FloatArray = floatArrayOf(1.0f, 2.0f, 4.0f, 8.0f)
 
