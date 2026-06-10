@@ -22,7 +22,42 @@ class VibranceBenchmark {
         val vibrance = Vibrance()
         val color = FloatArray(3)
         benchmarkRule.measureRepeated {
-            BlackHole.consume(vibrance.pigmentsMix(0.50841904f, 0.258023f, 0.00149352f, 0.23206444f, color, 0))
+            BlackHole.consume(vibrance.pigmentsMix(0.5f, 0.25f, 0.02f, 0.23f, color))
+        }
+    }
+
+    @Test
+    fun latentColorToColor() {
+        val vibrance = Vibrance()
+        val color = FloatArray(3)
+        val latentColor = FloatArray(6)
+        vibrance.colorToLatentColor(0.1f, 0.7f, 1.0f, latentColor)
+        benchmarkRule.measureRepeated {
+            BlackHole.consume(vibrance.latentColorToColor(latentColor, color))
+        }
+    }
+
+    @Test
+    fun latentColorsMix() {
+        val vibrance = Vibrance()
+        val color = FloatArray(3)
+        val latentColor0 = FloatArray(6)
+        val latentColor1 = FloatArray(6)
+
+        vibrance.colorToLatentColor(0.0f, 0.0f, 1.0f, latentColor0)
+        vibrance.colorToLatentColor(0.0f, 1.0f, 1.0f, latentColor1)
+
+        benchmarkRule.measureRepeated {
+            BlackHole.consume(vibrance.latentColorsMix(latentColor0, latentColor1, 0.5f, color))
+        }
+    }
+
+    @Test
+    fun colorToLatentColor() {
+        val vibrance = Vibrance()
+        val latentColor = FloatArray(6)
+        benchmarkRule.measureRepeated {
+            BlackHole.consume(vibrance.colorToLatentColor(0.1f, 0.7f, 1.0f, latentColor))
         }
     }
 
@@ -31,16 +66,7 @@ class VibranceBenchmark {
         val vibrance = Vibrance()
         val color = FloatArray(3)
         benchmarkRule.measureRepeated {
-            BlackHole.consume(vibrance.colorsMix(0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.5f, color, 0))
-        }
-    }
-
-    @Test
-    fun colorToPigments() {
-        val vibrance = Vibrance()
-        val pigments = FloatArray(4)
-        benchmarkRule.measureRepeated {
-            BlackHole.consume(vibrance.colorToPigments(0.1f, 0.7f, 1.0f, pigments, 0))
+            BlackHole.consume(vibrance.colorsMix(0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.5f, color))
         }
     }
 }

@@ -2,10 +2,7 @@
 <project version="4">
   <component name="deploymentTargetSelector">
     <selectionStates>
-      <SelectionState runConfigName="VibranceBenchmark">
-        <option name="selectionMode" value="DROPDOWN" />
-      </SelectionState>
-      <SelectionState runConfigName="lerp()">
+      <SelectionState runConfigName="Android Benchmarks">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>
