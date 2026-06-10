@@ -14,7 +14,7 @@ private const val PI: Float = 3.1415927f
  *
  * This MLP has a simple architecture:
  * - Input: 3 floats (R, G, B)
- * - 3 hidden layers with 32 neurons
+ * - 3 layers (input, hidden, output), with 32 neurons
  * - ReLU activation
  * - Output: 3 floats (pigment concentration 1, 2, 3)
  *
