@@ -1,4 +1,4 @@
-@file:Suppress("LocalVariableName", "DuplicatedCode", "UnnecessaryVariable", "FloatingPointLiteralPrecision")
+@file:Suppress("DuplicatedCode", "UnnecessaryVariable", "FloatingPointLiteralPrecision")
 
 package dev.romainguy.vibrance
 
