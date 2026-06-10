@@ -123,7 +123,19 @@ generate a 65x65x65 LUT.
 > This script will also downsample the stored values (the concentrations) from fp16 to
 > uint8, incurring a loss of precision in the process.
 
-## 7. Jupyter Notebook
+## 8. Curve Fitting Pigments Mixing
+
+The process to mix pigments is fairly simple and efficient but requires running the
+Kubelka-Munk equation for each measured wavelength. After mixing, the resulting reflectance
+is integrated using our chosen color-matching function. Even when optimized, this process
+requires, in our case, looping over 36 wavelengths. We can instead compute a good
+approximation by fitting a polynomial curve to our dataset.
+
+To perform the curve fit, run `fit.py`. The script will generate the feature names,
+intercepts, and coefficients for a 3-degree polynomial that takes 4 pigment concentration
+as inputs, and returns an sRGB color.
+
+## 9. Jupyter Notebook
 
 The notebook in `Paint Mixing.ipynb` was the original implementation of the scripts
 detailed above. It now contains a simple visualization of various color ramps through

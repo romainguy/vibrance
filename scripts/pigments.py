@@ -72,13 +72,11 @@ class Pigments():
         self.config = config
         if torch.backends.mps.is_available():
             self.device = torch.device("mps")
-            print("🚀 Accelerating using Apple Silicon GPU (MPS)")
         elif torch.cuda.is_available():
             self.device = torch.device("cuda")
-            print("🚀 Accelerating using NVIDIA GPU (CUDA)")
         else:
             self.device = torch.device("cpu")
-            print("⚠️ Running on CPU")
+            print("⚠️ Running PyTorch on CPU")
         self.__loadData()
         self.__loadPigmentData()
 
