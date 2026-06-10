@@ -22,18 +22,25 @@ class VibranceBenchmark {
         val vibrance = Vibrance()
         val color = FloatArray(3)
         benchmarkRule.measureRepeated {
-            BlackHole.consume(vibrance.mix(0.50841904f, 0.258023f, 0.00149352f, 0.23206444f, color, 0))
+            BlackHole.consume(vibrance.pigmentsMix(0.50841904f, 0.258023f, 0.00149352f, 0.23206444f, color, 0))
         }
     }
 
     @Test
-    fun lerp() {
+    fun colorsMix() {
         val vibrance = Vibrance()
         val color = FloatArray(3)
         benchmarkRule.measureRepeated {
-            BlackHole.consume(
-                vibrance.lerp(0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.5f, color, 0)
-            )
+            BlackHole.consume(vibrance.colorsMix(0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.5f, color, 0))
+        }
+    }
+
+    @Test
+    fun colorToPigments() {
+        val vibrance = Vibrance()
+        val pigments = FloatArray(4)
+        benchmarkRule.measureRepeated {
+            BlackHole.consume(vibrance.colorToPigments(0.1f, 0.7f, 1.0f, pigments, 0))
         }
     }
 }

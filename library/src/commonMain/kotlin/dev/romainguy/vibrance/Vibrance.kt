@@ -1,4 +1,4 @@
-@file:Suppress("LocalVariableName")
+@file:Suppress("LocalVariableName", "DuplicatedCode")
 
 package dev.romainguy.vibrance
 
@@ -10,69 +10,131 @@ import kotlin.math.sqrt
 
 class Vibrance {
     internal val model = PigmentsModel()
-    internal val latent0 = FloatArray(3)
+    internal val pigmentsBuffer = FloatArray(3)
 
-    @Suppress("DuplicatedCode")
-    fun lerp(
-        redSrc: Float,
-        greenSrc: Float,
-        blueSrc: Float,
-        redDst: Float,
-        greenDst: Float,
-        blueDst: Float,
-        t: Float,
-        color: FloatArray = FloatArray(3),
-        offset: Int = 0
+    fun colorToLatentColor(
+        r: Float,
+        g: Float,
+        b: Float,
+        latentColor: FloatArray = FloatArray(6)
     ): FloatArray {
-        val latent = latent0
+        val buffer = pigmentsBuffer
+        model.predict(r, g, b, buffer)
 
-        // Source
-        model.predict(redSrc, greenSrc, blueSrc, latent)
-        val latent0Src = latent[0]
-        val latent1Src = latent[1]
-        val latent2Src = latent[2]
-        val latent3Src = 1.0f - (latent0Src + latent1Src + latent2Src)
+        val latent0 = buffer[0]
+        val latent1 = buffer[1]
+        val latent2 = buffer[2]
+        val latent3 = 1.0f - (buffer[0] + buffer[1] + buffer[2])
 
-        mix(latent0Src, latent1Src, latent2Src, latent3Src, color, offset)
-        val rSrc = redSrc - color[offset]
-        val gSrc = greenSrc - color[offset + 1]
-        val bSrc = blueSrc - color[offset + 2]
+        pigmentsMix(latent0, latent1, latent2, latent3, buffer)
 
-        // Destination
-        model.predict(redDst, greenDst, blueDst, latent)
-        val latent0Dst = latent[0]
-        val latent1Dst = latent[1]
-        val latent2Dst = latent[2]
-        val latent3Dst = 1.0f - (latent0Dst + latent1Dst + latent2Dst)
+        latentColor[0] = latent0
+        latentColor[1] = latent1
+        latentColor[2] = latent2
+        latentColor[3] = r - buffer[0]
+        latentColor[4] = g - buffer[1]
+        latentColor[5] = b - buffer[2]
 
-        mix(latent0Dst, latent1Dst, latent2Dst, latent3Dst, color, offset)
-        val rDst = redDst - color[offset]
-        val gDst = greenDst - color[offset + 1]
-        val bDst = blueDst - color[offset + 2]
+        return latentColor
+    }
 
-        mix(
-            lerp(latent0Src, latent0Dst, t),
-            lerp(latent1Src, latent1Dst, t),
-            lerp(latent2Src, latent2Dst, t),
-            lerp(latent3Src, latent3Dst, t),
-            color,
-            offset
-        )
+    fun latentColorToColor(
+        latentColor: FloatArray,
+        color: FloatArray = FloatArray(3)
+    ): FloatArray {
+        val blue = latentColor[0]
+        val magenta = latentColor[1]
+        val yellow = latentColor[2]
+        val white = 1.0f - (blue + magenta + yellow)
 
-        color[0] = (color[0] + lerp(rSrc, rDst, t)).fastCoerceIn(0.0f, 1.0f)
-        color[1] = (color[1] + lerp(gSrc, gDst, t)).fastCoerceIn(0.0f, 1.0f)
-        color[2] = (color[2] + lerp(bSrc, bDst, t)).fastCoerceIn(0.0f, 1.0f)
+        pigmentsMix(blue, magenta, yellow, white, color)
+
+        color[0] = (color[0] + latentColor[3]).fastCoerceIn(0.0f, 1.0f)
+        color[1] = (color[1] + latentColor[4]).fastCoerceIn(0.0f, 1.0f)
+        color[2] = (color[2] + latentColor[5]).fastCoerceIn(0.0f, 1.0f)
 
         return color
     }
 
-    fun mix(
-        c0: Float,
-        c1: Float,
-        c2: Float,
-        c3: Float,
-        color: FloatArray = FloatArray(3),
-        offset: Int = 0
+    fun latentColorsMix(
+        src: FloatArray,
+        dst: FloatArray,
+        t: Float,
+        color: FloatArray = FloatArray(3)
+    ): FloatArray {
+
+        pigmentsMix(
+            lerp(src[0], dst[0], t),
+            lerp(src[1], dst[1], t),
+            lerp(src[2], dst[2], t),
+            lerp(1.0f - (src[0] + src[1] + src[2]), 1.0f - (dst[0] + dst[1] + dst[2]), t),
+            color
+        )
+
+        color[0] = (color[0] + lerp(src[3], dst[3], t)).fastCoerceIn(0.0f, 1.0f)
+        color[1] = (color[1] + lerp(src[4], dst[4], t)).fastCoerceIn(0.0f, 1.0f)
+        color[2] = (color[2] + lerp(src[5], dst[5], t)).fastCoerceIn(0.0f, 1.0f)
+
+        return color
+    }
+
+    fun colorsMix(
+        srcR: Float,
+        srcG: Float,
+        srcB: Float,
+        dstR: Float,
+        dstG: Float,
+        dstB: Float,
+        t: Float,
+        color: FloatArray = FloatArray(3)
+    ): FloatArray {
+        val pigments = pigmentsBuffer
+
+        // Source
+        model.predict(srcR, srcG, srcB, pigments)
+        val srcPigment0 = pigments[0]
+        val srcPigment1 = pigments[1]
+        val srcPigment2 = pigments[2]
+        val srcPigment3 = 1.0f - (srcPigment0 + srcPigment1 + srcPigment2)
+
+        pigmentsMix(srcPigment0, srcPigment1, srcPigment2, srcPigment3, color)
+        val srcRemainderR = srcR - color[0]
+        val srcRemainderG = srcG - color[1]
+        val srcRemainderB = srcB - color[2]
+
+        // Destination
+        model.predict(dstR, dstG, dstB, pigments)
+        val dstPigment0 = pigments[0]
+        val dstPigment1 = pigments[1]
+        val dstPigment2 = pigments[2]
+        val dstPigment3 = 1.0f - (dstPigment0 + dstPigment1 + dstPigment2)
+
+        pigmentsMix(dstPigment0, dstPigment1, dstPigment2, dstPigment3, color)
+        val dstRemainderR = dstR - color[0]
+        val dstRemainderG = dstG - color[1]
+        val dstRemainderB = dstB - color[2]
+
+        pigmentsMix(
+            lerp(srcPigment0, dstPigment0, t),
+            lerp(srcPigment1, dstPigment1, t),
+            lerp(srcPigment2, dstPigment2, t),
+            lerp(srcPigment3, dstPigment3, t),
+            color
+        )
+
+        color[0] = (color[0] + lerp(srcRemainderR, dstRemainderR, t)).fastCoerceIn(0.0f, 1.0f)
+        color[1] = (color[1] + lerp(srcRemainderG, dstRemainderG, t)).fastCoerceIn(0.0f, 1.0f)
+        color[2] = (color[2] + lerp(srcRemainderB, dstRemainderB, t)).fastCoerceIn(0.0f, 1.0f)
+
+        return color
+    }
+
+    fun pigmentsMix(
+        blue: Float,
+        magenta: Float,
+        yellow: Float,
+        white: Float,
+        color: FloatArray = FloatArray(3)
     ): FloatArray {
         val K0 = K[0]
         val K1 = K[1]
@@ -88,13 +150,13 @@ class Vibrance {
         val observer1 = NormalizedObserverD65[1]
         val observer2 = NormalizedObserverD65[2]
 
-        var x = 0.0f
-        var y = 0.0f
-        var z = 0.0f
+        var X = 0.0f
+        var Y = 0.0f
+        var Z = 0.0f
 
-        val kMix = c0 * K0[0] + c1 * K1[0] + c2 * K2[0] + c3 * K3[0]
+        val kMix = blue * K0[0] + magenta * K1[0] + yellow * K2[0] + white * K3[0]
         // Apply a max to keep the division below safe
-        val sMix = max(c0 * S0[0] + c1 * S1[0] + c2 * S2[0] + c3 * S3[0], 1e-7f)
+        val sMix = max(blue * S0[0] + magenta * S1[0] + yellow * S2[0] + white * S3[0], 1e-7f)
         val reflectance0 = reflectance(kMix, sMix)
 
         var previousReflectance0 = observer0[0] * reflectance0
@@ -103,8 +165,8 @@ class Vibrance {
 
         for (i in 1 until WaveLengthCount) {
             // Compute the Kubelka-Munk reflectance
-            val kMix = c0 * K0[i] + c1 * K1[i] + c2 * K2[i] + c3 * K3[i]
-            val sMix = max(c0 * S0[i] + c1 * S1[i] + c2 * S2[i] + c3 * S3[i], 1e-7f)
+            val kMix = blue * K0[i] + magenta * K1[i] + yellow * K2[i] + white * K3[i]
+            val sMix = max(blue * S0[i] + magenta * S1[i] + yellow * S2[i] + white * S3[i], 1e-7f)
             val reflectance = reflectance(kMix, sMix)
 
             val reflectance0 = observer0[i] * reflectance
@@ -112,9 +174,9 @@ class Vibrance {
             val reflectance2 = observer2[i] * reflectance
 
             // Integrate the reflectance over the CMF
-            x += (previousReflectance0 + reflectance0) * WaveLengthHalfInterval
-            y += (previousReflectance1 + reflectance1) * WaveLengthHalfInterval
-            z += (previousReflectance2 + reflectance2) * WaveLengthHalfInterval
+            X += (previousReflectance0 + reflectance0) * WaveLengthHalfInterval
+            Y += (previousReflectance1 + reflectance1) * WaveLengthHalfInterval
+            Z += (previousReflectance2 + reflectance2) * WaveLengthHalfInterval
 
             previousReflectance0 = reflectance0
             previousReflectance1 = reflectance1
@@ -122,13 +184,13 @@ class Vibrance {
         }
 
         // Conversion to sRGB
-        val linearR =  3.2406f * x - 1.5372f * y - 0.4986f * z
-        val linearG = -0.9689f * x + 1.8758f * y + 0.0415f * z
-        val linearB =  0.0557f * x - 0.2040f * y + 1.0570f * z
+        val linearR =  3.2406f * X - 1.5372f * Y - 0.4986f * Z
+        val linearG = -0.9689f * X + 1.8758f * Y + 0.0415f * Z
+        val linearB =  0.0557f * X - 0.2040f * Y + 1.0570f * Z
 
-        color[offset    ] = eotfSrgb(linearR).fastCoerceIn(0.0f, 1.0f)
-        color[offset + 1] = eotfSrgb(linearG).fastCoerceIn(0.0f, 1.0f)
-        color[offset + 2] = eotfSrgb(linearB).fastCoerceIn(0.0f, 1.0f)
+        color[0] = eotfSrgb(linearR).fastCoerceIn(0.0f, 1.0f)
+        color[1] = eotfSrgb(linearG).fastCoerceIn(0.0f, 1.0f)
+        color[2] = eotfSrgb(linearB).fastCoerceIn(0.0f, 1.0f)
 
         return color
     }
@@ -271,3 +333,5 @@ internal val S: Array<FloatArray> = arrayOf(
         0.057227395f, 0.051694162f, 0.047576685f, 0.045789514f, 0.045142405f, 0.04810665f
     )
 )
+
+//x^3*p0 + y^3*p1 + z^3*p2 + w^3*p3 + x^2*y*p4 + y^2*x*p5 + x^2*z*p6 + z^2*x*p7 + x^2*w*p8 + w^2*x*p9 + y^2*z*p10 + z^2*y*p11 + y^2*w*p12 + w^2*y*p13 + z^2*w*p14 + w^2*z*p15 + x*y*z*p16 + x*y*w*p17 + x*z*w*p18 + y*z*w*p19
