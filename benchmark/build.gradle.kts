@@ -47,6 +47,5 @@ dependencies {
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.junit.junit)
     androidTestImplementation(libs.benchmark.junit4)
-
-    androidTestImplementation(project(":library"))
+    androidTestImplementation(project(":vibrance"))
 }

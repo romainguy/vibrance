@@ -14,5 +14,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "vibrance"
-include(":library")
+include(":vibrance")
 include(":benchmark")
