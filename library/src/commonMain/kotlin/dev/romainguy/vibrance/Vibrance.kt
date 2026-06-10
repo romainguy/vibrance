@@ -268,9 +268,9 @@ class Vibrance {
             c23 * (-0.5033431f + c0 * -0.5336707f + c1 * -0.2668557f) +
             c01 * 0.2718149f + c02 * -0.5287832f + c03 * 0.2959273f
 
-        color[0] = rBase + r00 + r11 + r22 + r33 + rCross
-        color[1] = gBase + g00 + g11 + g22 + g33 + gCross
-        color[2] = bBase + b00 + b11 + b22 + b33 + bCross
+        color[0] = (rBase + r00 + r11 + r22 + r33 + rCross).fastCoerceIn(0.0f, 1.0f)
+        color[1] = (gBase + g00 + g11 + g22 + g33 + gCross).fastCoerceIn(0.0f, 1.0f)
+        color[2] = (bBase + b00 + b11 + b22 + b33 + bCross).fastCoerceIn(0.0f, 1.0f)
 
         return color
     }
