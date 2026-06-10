@@ -6,6 +6,18 @@ class Vibrance {
     internal val model = PigmentsModel()
     internal val pigmentsBuffer = FloatArray(3)
 
+    /**
+     * Converts an sRGB color to a latent color. A latent color is a representation of a
+     * color that uses a series of paint pigments concentrations and an RGB remainder.
+     * Latent colors are represented as arrays of 6 floats. All the values in the arrays
+     * are between 0 and 1.
+     *
+     * @param r The red component of the sRGB color to convert to latent space.
+     * @param g The green component of the sRGB color to convert to latent space.
+     * @param b The blue component of the sRGB color to convert to latent space.
+     * @param latentColor An array of at least 6 floats that will store the resulting latent color.
+     * @return The [latentColor] array if specified, otherwise a newly allocated array of 6 floats.
+     */
     fun colorToLatentColor(
         r: Float,
         g: Float,
@@ -32,6 +44,15 @@ class Vibrance {
         return latentColor
     }
 
+    /**
+     * Converts a latent color to an sRGB color. A latent color is a representation of a
+     * color that uses a series of paint pigments concentrations and an RGB remainder.
+     * Latent colors are represented as arrays of 6 floats and can be computed using
+     * [colorToLatentColor]. All the values in the arrays must be between 0 and 1.
+     *
+     * @param color An array of at least 3 floats that will store the resulting sRGB color.
+     * @return The [color] array if specified, otherwise a newly allocated array of 3 floats.
+     */
     fun latentColorToColor(
         latentColor: FloatArray,
         color: FloatArray = FloatArray(3)
@@ -50,28 +71,65 @@ class Vibrance {
         return color
     }
 
+    /**
+     * Mixes two latent colors and computes the resulting sRGB color. A latent color is a
+     * representation of a color that uses a series of paint pigments concentrations and
+     * an RGB remainder. Latent colors are represented as arrays of 6 floats and can be
+     * computed using [colorToLatentColor]. All the values in the arrays must be between
+     * 0 and 1.
+     *
+     * @param src The source latent color to mix, must be an array of at least 6 floats, with
+     *     values between 0 and 1.
+     * @param src The destination latent color to mix, must be an array of at least 6 floats, with
+     *     values between 0 and 1.
+     * @param color An array of at least 3 floats that will store the interpolated sRGB color.
+     * @return The [color] array if specified, otherwise a newly allocated array of 3 floats.
+     */
     fun latentColorsMix(
         src: FloatArray,
         dst: FloatArray,
-        t: Float,
+        amount: Float,
         color: FloatArray = FloatArray(3)
     ): FloatArray {
 
         pigmentsMix(
-            lerp(src[0], dst[0], t),
-            lerp(src[1], dst[1], t),
-            lerp(src[2], dst[2], t),
-            lerp(1.0f - (src[0] + src[1] + src[2]), 1.0f - (dst[0] + dst[1] + dst[2]), t),
+            lerp(src[0], dst[0], amount),
+            lerp(src[1], dst[1], amount),
+            lerp(src[2], dst[2], amount),
+            lerp(1.0f - (src[0] + src[1] + src[2]), 1.0f - (dst[0] + dst[1] + dst[2]), amount),
             color
         )
 
-        color[0] = (color[0] + lerp(src[3], dst[3], t)).fastCoerceIn(0.0f, 1.0f)
-        color[1] = (color[1] + lerp(src[4], dst[4], t)).fastCoerceIn(0.0f, 1.0f)
-        color[2] = (color[2] + lerp(src[5], dst[5], t)).fastCoerceIn(0.0f, 1.0f)
+        color[0] = (color[0] + lerp(src[3], dst[3], amount)).fastCoerceIn(0.0f, 1.0f)
+        color[1] = (color[1] + lerp(src[4], dst[4], amount)).fastCoerceIn(0.0f, 1.0f)
+        color[2] = (color[2] + lerp(src[5], dst[5], amount)).fastCoerceIn(0.0f, 1.0f)
 
         return color
     }
 
+    /**
+     * Mixes two sRGB colors as concentrations of paint pigments. This method exists for convenience
+     * but requires to upscale the input sRGB colors to a series of pigment concentrations every
+     * time it is invoked. If the same input colors will be mixed multiple times using a different
+     * mix amount, it is recommended to instead precompute the latent colors for each input using
+     * [colorToLatentColor], and mixing them using [latentColorsMix].
+     *
+     * On a Google Pixel 6, using this method directly takes 6.3µs, while [latentColorsMix] only
+     * takes 42ns (150x faster).
+     *
+     * The component of each input color must be between 0 and 1.
+     *
+     * @param srcR The red component of the source color, between 0 and 1.
+     * @param srcG The green component of the source color, between 0 and 1.
+     * @param srcB The blue component of the source color, between 0 and 1.
+     * @param dstR The red component of the destination color, between 0 and 1.
+     * @param dstG The green component of the destination color, between 0 and 1.
+     * @param dstB The blue component of the destination color, between 0 and 1.
+     * @param amount The mix (or interpolation) amount between the source and destination
+     *     colors, between 0 and 1.
+     * @param color An array of at least 3 floats that will store the interpolated sRGB color.
+     * @return The [color] array if specified, otherwise a newly allocated array of 3 floats.
+     */
     fun colorsMix(
         srcR: Float,
         srcG: Float,
@@ -79,7 +137,7 @@ class Vibrance {
         dstR: Float,
         dstG: Float,
         dstB: Float,
-        t: Float,
+        amount: Float,
         color: FloatArray = FloatArray(3)
     ): FloatArray {
         val pigments = pigmentsBuffer
@@ -109,20 +167,40 @@ class Vibrance {
         val dstRemainderB = dstB - color[2]
 
         pigmentsMix(
-            lerp(srcPigment0, dstPigment0, t),
-            lerp(srcPigment1, dstPigment1, t),
-            lerp(srcPigment2, dstPigment2, t),
-            lerp(srcPigment3, dstPigment3, t),
+            lerp(srcPigment0, dstPigment0, amount),
+            lerp(srcPigment1, dstPigment1, amount),
+            lerp(srcPigment2, dstPigment2, amount),
+            lerp(srcPigment3, dstPigment3, amount),
             color
         )
 
-        color[0] = (color[0] + lerp(srcRemainderR, dstRemainderR, t)).fastCoerceIn(0.0f, 1.0f)
-        color[1] = (color[1] + lerp(srcRemainderG, dstRemainderG, t)).fastCoerceIn(0.0f, 1.0f)
-        color[2] = (color[2] + lerp(srcRemainderB, dstRemainderB, t)).fastCoerceIn(0.0f, 1.0f)
+        color[0] = (color[0] + lerp(srcRemainderR, dstRemainderR, amount)).fastCoerceIn(0.0f, 1.0f)
+        color[1] = (color[1] + lerp(srcRemainderG, dstRemainderG, amount)).fastCoerceIn(0.0f, 1.0f)
+        color[2] = (color[2] + lerp(srcRemainderB, dstRemainderB, amount)).fastCoerceIn(0.0f, 1.0f)
 
         return color
     }
 
+    /**
+     * Mixes 4 pigment concentrations to produce an sRGB color. The 4 pigments are the following:
+     * - Phthalo Blue (Green Shade)
+     * - Quinacridone Magenta
+     * - Hansa Yellow
+     * - Titanium White
+     *
+     * Each concentration must be a value between 0 and 1, and the sum of the concentrations
+     * *must* be 1. This function does not validate the inputs and the resulting color is
+     * undefined if these conditions are not met.
+     *
+     * The computed sRGB color uses the range 0 to 1 for each of the R, G, and B components.
+     *
+     * @param blue The concentration between 0 and 1 of Phthalo Blue to mix in.
+     * @param magenta The concentration between 0 and 1 of Quinacridone Magenta to mix in.
+     * @param yellow The concentration between 0 and 1 of Hansa Yellow to mix in.
+     * @param white The concentration between 0 and 1 of Titanium White to mix in.
+     * @param color An array of at least 3 floats that will store the computed sRGB color.
+     * @return The [color] array if specified, otherwise a newly allocated array of 3 floats.
+     */
     fun pigmentsMix(
         blue: Float,
         magenta: Float,
@@ -130,6 +208,11 @@ class Vibrance {
         white: Float,
         color: FloatArray = FloatArray(3)
     ): FloatArray {
+        // This is a 3-degree polynomial fit of the original Kubelka-Munk pigments mixing implementation.
+        // The list of coefficients was generated using the script fit.py, and the resulting polynomial
+        // was optimized to avoid register spilling once compiled down to arm64 on Android.
+        // The register spilling optimization takes this function from 542 instructions down to 450.
+        // Once optimized, this function runs in 33ns on a Google Pixel 6 running Android 16.
         val c0 = blue
         val c1 = magenta
         val c2 = yellow
@@ -170,18 +253,18 @@ class Vibrance {
         val rCross =
             c12 * ( 0.5938269f + c0 * -2.1088993f) +
             c13 * ( 0.6404553f + c0 * -1.4424087f) +
-            c23 * ( 0.7449525f + c0 * -1.4003482f + c1 * 1.3378888f) +
+            c23 * ( 0.7449525f + c0 * -1.4003482f + c1 *  1.3378888f) +
             c01 * -1.5921237f + c02 * -1.7544585f + c03 * -1.3010608f
 
         val gCross =
-            c12 * (-0.1713186f + c0 * 0.2198481f) +
-            c13 * (-0.1467898f + c0 * 0.2144062f) +
+            c12 * (-0.1713186f + c0 *  0.2198481f) +
+            c13 * (-0.1467898f + c0 *  0.2144062f) +
             c23 * ( 0.2549431f + c0 * -0.2605754f + c1 * -0.3399114f) +
             c01 * -0.0498495f + c02 * -0.0558377f + c03 * -0.0255134f
 
         val bCross =
             c12 * (-0.3537513f + c0 * -0.1266331f) +
-            c13 * ( 0.2810154f + c0 * 0.2929669f) +
+            c13 * ( 0.2810154f + c0 *  0.2929669f) +
             c23 * (-0.5033431f + c0 * -0.5336707f + c1 * -0.2668557f) +
             c01 * 0.2718149f + c02 * -0.5287832f + c03 * 0.2959273f
 
