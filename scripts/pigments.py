@@ -147,37 +147,47 @@ class Pigments():
         self.P_star_K = torch.tensor(self.K, dtype=torch.float32, device=self.device)
         self.P_star_S = torch.tensor(self.S, dtype=torch.float32, device=self.device)
 
-    def mix(self, concentration):
-        Kmix = np.dot(concentration, self.K)
-        Smix = np.dot(concentration, self.S)
-        # Safe division later
+    def mix_linear(self, concentration):
+        concentration = np.asarray(concentration)
+        concentration2d = np.atleast_2d(concentration)
+
+        Kmix = np.dot(concentration2d, self.K)
+        Smix = np.dot(concentration2d, self.S)
         Smix = np.maximum(Smix, 1e-7)
 
-        # KM Reflectance, using a single K/S term, for an infinitely thick
-        # coat of paint, thus ignoring the substrate
         if not self.config.use_substrate:
             KSmix = Kmix / Smix
             Rmix = 1.0 + KSmix - np.sqrt(KSmix ** 2.0 + 2.0 * KSmix)
         else:
-            # Account for the substrate
-            # "The extended Kubelka–Munk theory and its application to spectroscopy",
-            # de la Osa, Iparragirre, Ortiz, Saiz, 2019
             a = 1.0 + (Kmix / Smix)
             b = np.sqrt(a * a - 1.0)
             bSX = b * Smix * self.config.paint_thickness
-            vsubstrate = np.vectorize(_substrate)
-            Rmix = vsubstrate(a, b, bSX, self.config.canvas_reflectance)
+            Rmix = _substrate(a, b, bSX, self.config.canvas_reflectance)
 
         # Saunderson Correction
         R = ((1.0 - self.K1) * (1.0 - self.K2) * Rmix) / (1.0 - self.K2 * Rmix)
         R = np.clip(R, 0, 1)
 
         # Integration and conversion to sRGB
-        xyz = sp.integrate.trapezoid(
-            self.normalized_observer_D65 * R, self.wavelengths)
-        r, g, b = _xyz_to_rgb(*xyz)
+        observer = self.normalized_observer_D65[:, np.newaxis, :]
+        R_exp = R[np.newaxis, :, :]
 
-        return np.clip(np.array([_EOTF_sRGB(r), _EOTF_sRGB(g), _EOTF_sRGB(b)]), 0, 1)
+        xyz = sp.integrate.trapezoid(observer * R_exp, x=self.wavelengths, axis=-1)
+        rgb = np.clip(np.array(_xyz_to_rgb(*xyz)), 0, 1)
+
+        if concentration.ndim == 1:
+            return rgb.flatten()
+        else:
+            return rgb.T
+
+    def mix(self, concentration):
+        rgb = self.mix_linear(concentration)
+        color = rgb.T
+        color = np.array([_EOTF_sRGB(color[0]), _EOTF_sRGB(color[1]), _EOTF_sRGB(color[2])])
+        if rgb.ndim == 1:
+            return color.flatten()
+        else:
+            return color.T
 
     def unmix_torch(self, target_rgb_tensor, steps=500, lr=0.05):
         device = target_rgb_tensor.device
@@ -438,19 +448,36 @@ def _xyz_to_rgb(x, y, z):
     g = -0.9689 * x +  1.8758 * y +  0.0415 * z
     b =  0.0557 * x + -0.2040 * y +  1.0570 * z
 
-    return r, g, b
+    return [r, g, b]
 
 def _EOTF_sRGB(x):
-    return 12.92 * x if (x <= 0.0031308) else (1.055 * (x ** (1.0 / 2.4)) - 0.055)
+    return np.where(
+        x <= 0.0031308,
+        12.92 * x,
+        1.055 * (x ** (1.0 / 2.4)) - 0.055
+    )
 
 def _substrate(a, b, bSX, canvas_reflectance):
-    if bSX > 20:
-        return a - b
-    else:
-        coth = np.cosh(bSX) / np.sinh(bSX)
-        num = 1.0 - canvas_reflectance * (a - b * coth)
-        den = a - canvas_reflectance + b * coth
-        return np.clip(num / den, 0.0, 1.0)
+    result = np.empty_like(a)
+    
+    large_mask = bSX > 20
+    small_mask = ~large_mask
+    
+    # Branch 1: bSX > 20
+    result[large_mask] = a[large_mask] - b[large_mask]
+    
+    # Branch 2: bSX <= 20
+    if np.any(small_mask):
+        a_s = a[small_mask]
+        b_s = b[small_mask]
+        bSX_s = np.maximum(bSX[small_mask], 1e-12)
+        
+        coth = np.cosh(bSX_s) / np.sinh(bSX_s)
+        num = 1.0 - canvas_reflectance * (a_s - b_s * coth)
+        den = a_s - canvas_reflectance + b_s * coth
+        result[small_mask] = np.clip(num / den, 0.0, 1.0)
+        
+    return result
 
 def _phi_signed_distance(rgb):
     # Signed distance of the rgb parameter inside the unit RGB cube
@@ -493,7 +520,6 @@ def _psi_oklab(rgb):
     oklab = torch.matmul(lms_cubed, m2.T)
 
     return oklab
-
 
 def _ndarray_to_kotlin(arr: np.ndarray, val_name: str = "myArray") -> str:
     if np.issubdtype(arr.dtype, np.floating):
