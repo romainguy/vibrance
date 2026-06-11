@@ -2,6 +2,8 @@
 
 package dev.romainguy.vibrance
 
+import kotlin.math.abs
+
 class Vibrance {
     internal val model = PigmentsModel()
     internal val pigmentsBuffer = FloatArray(3)
@@ -24,8 +26,15 @@ class Vibrance {
         b: Float,
         latentColor: FloatArray = FloatArray(6)
     ): FloatArray {
+        requirePrecondition(latentColor.size >= 6) { "latentColor must have a size >= 6" }
+
         val buffer = pigmentsBuffer
-        model.predict(r, g, b, buffer)
+        model.predict(
+            r.fastCoerceIn(0.0f, 1.0f),
+            g.fastCoerceIn(0.0f, 1.0f),
+            b.fastCoerceIn(0.0f, 1.0f),
+            buffer
+        )
 
         val latent0 = buffer[0]
         val latent1 = buffer[1]
@@ -48,7 +57,8 @@ class Vibrance {
      * Converts a latent color to an sRGB color. A latent color is a representation of a
      * color that uses a series of paint pigments concentrations and an RGB remainder.
      * Latent colors are represented as arrays of 6 floats and can be computed using
-     * [colorToLatentColor]. All the values in the arrays must be between 0 and 1.
+     * [colorToLatentColor]. All the values in the arrays must be between 0 and 1. The
+     * sum of the first 3 elements of [latentColor] must be <= 1.0.
      *
      * @param color An array of at least 3 floats that will store the resulting sRGB color.
      * @return The [color] array if specified, otherwise a newly allocated array of 3 floats.
@@ -57,9 +67,12 @@ class Vibrance {
         latentColor: FloatArray,
         color: FloatArray = FloatArray(3)
     ): FloatArray {
-        val blue = latentColor[0]
-        val magenta = latentColor[1]
-        val yellow = latentColor[2]
+        requirePrecondition(latentColor.size >= 6) { "latentColor must have a size >= 6" }
+        requirePrecondition(color.size >= 3) { "color must have a size >= 3" }
+
+        val blue = latentColor[0].fastCoerceIn(0.0f, 1.0f)
+        val magenta = latentColor[1].fastCoerceIn(0.0f, 1.0f)
+        val yellow = latentColor[2].fastCoerceIn(0.0f, 1.0f)
         val white = 1.0f - (blue + magenta + yellow)
 
         pigmentsMix(blue, magenta, yellow, white, color)
@@ -91,14 +104,13 @@ class Vibrance {
         amount: Float,
         color: FloatArray = FloatArray(3)
     ): FloatArray {
+        requirePrecondition(src.size >= 6 && dst.size >= 6) { "src and dst must have a size >= 6" }
+        requirePrecondition(color.size >= 3) { "color must have a size >= 3" }
 
-        pigmentsMix(
-            lerp(src[0], dst[0], amount),
-            lerp(src[1], dst[1], amount),
-            lerp(src[2], dst[2], amount),
-            lerp(1.0f - (src[0] + src[1] + src[2]), 1.0f - (dst[0] + dst[1] + dst[2]), amount),
-            color
-        )
+        val c0 = lerp(src[0], dst[0], amount)
+        val c1 = lerp(src[1], dst[1], amount)
+        val c2 = lerp(src[2], dst[2], amount)
+        pigmentsMix(c0, c1, c2, 1.0f - (c0 + c1 + c2), color)
 
         color[0] = (color[0] + lerp(src[3], dst[3], amount)).fastCoerceIn(0.0f, 1.0f)
         color[1] = (color[1] + lerp(src[4], dst[4], amount)).fastCoerceIn(0.0f, 1.0f)
@@ -140,6 +152,8 @@ class Vibrance {
         amount: Float,
         color: FloatArray = FloatArray(3)
     ): FloatArray {
+        requirePrecondition(color.size >= 3) { "color must have a size >= 3" }
+
         val pigments = pigmentsBuffer
 
         // Source
@@ -166,13 +180,10 @@ class Vibrance {
         val dstRemainderG = dstG - color[1]
         val dstRemainderB = dstB - color[2]
 
-        pigmentsMix(
-            lerp(srcPigment0, dstPigment0, amount),
-            lerp(srcPigment1, dstPigment1, amount),
-            lerp(srcPigment2, dstPigment2, amount),
-            lerp(srcPigment3, dstPigment3, amount),
-            color
-        )
+        val c0 = lerp(srcPigment0, dstPigment0, amount)
+        val c1 = lerp(srcPigment1, dstPigment1, amount)
+        val c2 = lerp(srcPigment2, dstPigment2, amount)
+        pigmentsMix(c0, c1, c2, 1.0f - (c0 + c1 + c2), color)
 
         color[0] = (color[0] + lerp(srcRemainderR, dstRemainderR, amount)).fastCoerceIn(0.0f, 1.0f)
         color[1] = (color[1] + lerp(srcRemainderG, dstRemainderG, amount)).fastCoerceIn(0.0f, 1.0f)
@@ -208,6 +219,11 @@ class Vibrance {
         white: Float,
         color: FloatArray = FloatArray(3)
     ): FloatArray {
+        requirePrecondition(abs(1.0f - (blue + magenta + yellow + white)) < 1e-6f) {
+            "The sum of the pigment concentrations must be equal to 1.0"
+        }
+        requirePrecondition(color.size >= 3) { "color must have a size >= 3" }
+
         // This is a 3-degree polynomial fit of the original Kubelka-Munk pigments mixing implementation.
         // The list of coefficients was generated using the script fit.py, and the resulting polynomial
         // was optimized to avoid register spilling once compiled down to arm64 on Android.

@@ -29,6 +29,12 @@ kotlin {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_21
         }
+
+        @Suppress("UnstableApiUsage")
+        optimization {
+            consumerKeepRules.publish = true
+            consumerKeepRules.files.add(project.file("consumer-proguard-rules.pro"))
+        }
     }
 
     iosArm64()
@@ -44,7 +50,6 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-
         }
 
         commonTest.dependencies {
