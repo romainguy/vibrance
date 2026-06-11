@@ -4,6 +4,118 @@ package dev.romainguy.vibrance
 
 import kotlin.math.abs
 
+/**
+ * [Vibrance] can be used to mix (or interpolate) sRGB colors as if they were made
+ * of different concentration of paint pigments. This replicates the process of
+ * subtractive color mixing, in opposition to the additive mixing process normally
+ * used when mixing RGB colors.
+ *
+ * # Mixing process
+ *
+ * To mix two sRGB colors in this manner, we must first upscale them to a _latent
+ * color space_, where they are represented by a series of pigment concentrations,
+ * plus an RGB remainder. The full process is:
+ * - Convert the source and destination sRGB colors to _latent colors_.
+ * - Mix (or interpolate) the source and destination latent colors.
+ * - Convert the result back to sRGB.
+ *
+ * To interpolate 25% between sRGB blue and yellow, you would therefore do the
+ * following:
+ * ```
+ * val vibrance = Vibrance()
+ * val latent0 = vibrance.colorToLatentColor(0.0f, 0.0f, 1.0f)
+ * val latent1 = vibrance.colorToLatentColor(0.0f, 1.0f, 1.0f)
+ * val color = vibrance.latentColorsMix(latent0, latent1, 0.25f)
+ * ```
+ * Note that [latentColorsMix] combines the interpolation and the sRGB conversion
+ * steps.
+ *
+ * For convenience, you can achieve the same result by calling a single function:
+ * ```
+ * val color = vibrance.colorsMix(0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.25f)
+ * ```
+ *
+ * See the Optimization section below for more details on how to best use these
+ * APIs.
+ *
+ * # Latent color representation
+ *
+ * An sRGB color is encoded in a 3D space, using the three components red, green,
+ * and blue. A latent color is encoded in a 7D space:
+ * - 4 pigment concentrations
+ * - 3 red/green/blue remainders
+ *
+ * The remainders are used to guarantee that process is bijective.
+ *
+ * In practice, a latent color only encodes 3 pigment concentrations as the
+ * 4th one is implicit and can be derived from the first 3 (see below for more
+ * information).
+ *
+ * ## Pigments and concentrations
+ *
+ * The 4 paint pigments used by [Vibrance] are based on measured data for:
+ * - Phthalo Blue (Green Shade)
+ * - Quinacridone Magenta
+ * - Hansa Yellow
+ * - Titanium White
+ *
+ * A pigment concentration is a value between 0 and 1 representing how much of
+ * that pigment to use in the final mixture. Importantly, the *sum* of the 4
+ * concentrations _must_ equal 1. This is why only 3 pigments are encoded in
+ * latent colors: the concentration of white is always defined as
+ * `1 - (blue + magenta + yellow)`.
+ *
+ * # Optimization
+ *
+ * The [Vibrance] APIs can be used to optimize for both execution time and
+ * allocations.
+ *
+ * ## Avoiding allocations
+ *
+ * All the APIs accept an optional `FloatArray` used to store the result. For
+ * instance, you can avoid allocations when converting from sRGB to latent color
+ * space by passing an array of 6 floats to [colorToLatentColor]:
+ * ```
+ * val latentColor = FloatArray(6)
+ * // ...
+ * colorToLatentColor(0.0f, 1.0f, 0.0f, latentColor)
+ * ```
+ * The array you pass will also be returned.
+ *
+ * [Vibrance] uses two types of `FloatArray`:
+ * - Arrays of 3 floats for sRGB colors
+ * - Arrays of 6 floats for latent colors
+ *
+ * ## Optimizing for execution time
+ *
+ * The method [colorsMix] is a convenient way to interpolate two sRGB colors
+ * in latent color space, but the sRGB inputs must be upscaled to latent space
+ * on every call. This upscaling step is the most expensive part of the mixing
+ * process. When the interpolation occurs frequently (during an animation for
+ * instance), it is recommended to first pre-compute the latent colors, and
+ * then use [latentColorsMix].
+ *
+ * For reference, here are the execution times for the APIs provided by this
+ * class (as measured on a Google Pixel 6 running Android 16):
+ *
+ * | API                  | Time  |
+ * |----------------------|-------|
+ * | [colorToLatentColor] | 3.1µs |
+ * | [latentColorToColor] | 40ns  |
+ * | [latentColorsMix]    | 44ns  |
+ * | [colorsMix]          | 6.3µs |
+ * | [pigmentsMix]        | 34ns  |
+ *
+ * # Pigments mixing
+ *
+ * [Vibrance] also provides an API to mix pigments direction:
+ * ```
+ * val color = vibrance.pigmentsMix(0.1f, 0.2f, 0.5f, 0.2f)
+ * ```
+ *
+ * As defined earlier, the sum of the pigment concetrations passed to this
+ * API must equal exactly 1.
+ */
 class Vibrance {
     internal val model = PigmentsModel()
     internal val pigmentsBuffer = FloatArray(3)
