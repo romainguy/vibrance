@@ -1,0 +1,45 @@
+package dev.romainguy.vibrance.compose
+
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.colorspace.ColorSpaces
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import dev.romainguy.vibrance.Vibrance
+
+fun Modifier.verticalPaintGradient(startColor: Color, encColor: Color) =
+    this then PaintGradientElement(startColor, encColor)
+
+private data class PaintGradientElement(
+    val startColor: Color,
+    val endColor: Color
+) : ModifierNodeElement<PaintGradientNode>() {
+    val vibrance = Vibrance()
+
+    override fun create(): PaintGradientNode {
+        val startSrgb = startColor.convert(ColorSpaces.Srgb)
+        val endSrgb = endColor.convert(ColorSpaces.Srgb)
+        val node = PaintGradientNode()
+
+        vibrance.colorToLatentColor(startSrgb.red, startSrgb.green, startSrgb.blue, node.startLatentColor)
+        vibrance.colorToLatentColor(endSrgb.red, endSrgb.green, endSrgb.blue, node.endLatentColor)
+
+        return node
+    }
+
+    override fun update(node: PaintGradientNode) {
+        val startSrgb = startColor.convert(ColorSpaces.Srgb)
+        val endSrgb = endColor.convert(ColorSpaces.Srgb)
+        vibrance.colorToLatentColor(startSrgb.red, startSrgb.green, startSrgb.blue, node.startLatentColor)
+        vibrance.colorToLatentColor(endSrgb.red, endSrgb.green, endSrgb.blue, node.endLatentColor)
+    }
+}
+
+@Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
+internal expect class PaintGradientNode() : DrawModifierNode, Modifier.Node {
+    val startLatentColor: FloatArray
+    val endLatentColor: FloatArray
+
+    override fun ContentDrawScope.draw()
+}

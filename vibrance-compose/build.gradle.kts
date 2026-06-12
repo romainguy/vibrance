@@ -1,13 +1,16 @@
-import com.vanniktech.maven.publish.JavadocJar
-import com.vanniktech.maven.publish.KotlinMultiplatform
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
+    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.vanniktech.mavenPublish)
     alias(libs.plugins.dokka)
 }
+
+group = "dev.romainguy"
+version = "0.1.0"
 
 kotlin {
     jvm()
@@ -36,9 +39,11 @@ kotlin {
     }
 
     androidLibrary {
-        namespace = "dev.romainguy.vibrance"
+        namespace = "dev.romainguy.vibrance.compose"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
+
+        androidResources.enable = true
 
         withJava()
         withHostTestBuilder {}.configure {}
@@ -49,24 +54,27 @@ kotlin {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_21
         }
-
-        @Suppress("UnstableApiUsage")
-        optimization {
-            consumerKeepRules.publish = true
-            consumerKeepRules.files.add(project.file("consumer-proguard-rules.pro"))
-        }
     }
+
+    applyDefaultHierarchyTemplate()
 
     sourceSets {
         commonMain.dependencies {
+            api(project(":vibrance"))
+            implementation(libs.compose.ui)
         }
-
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
+
+        val skikoMain by registering { dependsOn(commonMain.get()) }
+        iosMain { dependsOn(skikoMain.get()) }
+        macosMain { dependsOn(skikoMain.get()) }
+        jvmMain { dependsOn(skikoMain.get()) }
+        wasmJsMain { dependsOn(skikoMain.get()) }
+        jsMain { dependsOn(skikoMain.get()) }
     }
 }
 
 mavenPublishing {
-    configure(KotlinMultiplatform(javadocJar = JavadocJar.Dokka("dokkaGenerate")))
 }

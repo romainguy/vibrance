@@ -15,4 +15,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "vibrance"
 include(":vibrance")
-include(":benchmark")
+include(":vibrance-compose")
+include(":vibrance-benchmark")

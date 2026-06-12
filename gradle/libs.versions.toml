@@ -3,24 +3,33 @@ agp = "9.0.1"
 android-minSdk = "24"
 android-compileSdk = "36"
 android-targetSdk = "36"
-kotlin = "2.4.0"
-vanniktechMavenPublish = "0.36.0"
 benchmark = "1.5.0-alpha06"
-runner = "1.7.0"
+benchmarkJunit4 = "1.4.1"
+compose = "1.11.1"
+compose-plugin = "1.11.1"
+dokka = "2.2.0"
 junit = "1.3.0"
 junitVersion = "4.13.2"
-benchmarkJunit4 = "1.4.1"
+kotlin = "2.4.0"
+runner = "1.7.0"
+vanniktechMavenPublish = "0.36.0"
+ui = "1.11.2"
 
 [libraries]
+compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 runner = { group = "androidx.test", name = "runner", version.ref = "runner" }
 junit = { group = "androidx.test.ext", name = "junit", version.ref = "junit" }
 junit-junit = { group = "junit", name = "junit", version.ref = "junitVersion" }
 benchmark-junit4 = { group = "androidx.benchmark", name = "benchmark-junit4", version.ref = "benchmarkJunit4" }
+ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
 
 [plugins]
+android-library = { id = "com.android.library", version.ref = "agp" }
 android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+benchmark = { id = "androidx.benchmark", version.ref = "benchmark" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+jetbrainsCompose = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 vanniktech-mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktechMavenPublish" }
-android-library = { id = "com.android.library", version.ref = "agp" }
-benchmark = { id = "androidx.benchmark", version.ref = "benchmark" }
