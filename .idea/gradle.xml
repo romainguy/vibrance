@@ -8,8 +8,9 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/benchmark" />
             <option value="$PROJECT_DIR$/vibrance" />
+            <option value="$PROJECT_DIR$/vibrance-benchmark" />
+            <option value="$PROJECT_DIR$/vibrance-compose" />
           </set>
         </option>
       </GradleProjectSettings>
