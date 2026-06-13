@@ -181,7 +181,7 @@ class Pigments():
     def mix(self, concentration):
         rgb = self.mix_linear(concentration)
         color = rgb.T
-        color = np.array([_EOTF_sRGB(color[0]), _EOTF_sRGB(color[1]), _EOTF_sRGB(color[2])])
+        color = _EOTF_sRGB(color)
         if rgb.ndim == 1:
             return color.flatten()
         else:
