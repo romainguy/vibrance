@@ -132,7 +132,7 @@ requires, in our case, looping over 36 wavelengths. We can instead compute a goo
 approximation by fitting a polynomial curve to our dataset.
 
 To perform the curve fit, run `fit.py`. The script will generate the feature names,
-intercepts, and coefficients for a 3-degree polynomial that takes 4 pigment concentration
+intercepts, and coefficients for a 2-degree polynomial that takes 4 pigment concentration
 as inputs, and returns an sRGB color.
 
 ## 9. Jupyter Notebook

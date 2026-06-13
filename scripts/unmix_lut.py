@@ -17,7 +17,13 @@ def generate_3d_lut(output_filename):
         red_index = torch.full_like(g_index, r)
 
         target_rgb = torch.stack([red_index, g_index, b_index], dim=-1).float().to(pg.device) / 255.0
-        concentrations = pg.unmix_torch(target_rgb)
+        mask = target_rgb <= 0.04045
+        linear_rgb = torch.where(
+            mask,
+            target_rgb / 12.92,
+            torch.pow((target_rgb + 0.055) / 1.055, 2.4)
+        )
+        concentrations = pg.unmix_torch(linear_rgb)
 
         slice_data = concentrations[..., :3].cpu().numpy().astype(np.float16)
         lut_3d[r] = slice_data

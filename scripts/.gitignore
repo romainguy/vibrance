@@ -3,9 +3,6 @@
 **/META-INF/
 .venv/
 __pycache__/
-data/pigments_*.json
 data/pigments_*.npy
-data/pigments_*.onnx
-data/pigments_*.onnx.data
 data/pigments_*.png
 source_data/
