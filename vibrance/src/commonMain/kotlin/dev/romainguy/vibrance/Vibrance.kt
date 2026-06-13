@@ -3,6 +3,7 @@
 package dev.romainguy.vibrance
 
 import kotlin.math.abs
+import kotlin.math.max
 
 /**
  * [Vibrance] can be used to mix (or interpolate) sRGB colors as if they were made
@@ -98,13 +99,13 @@ import kotlin.math.abs
  * For reference, here are the execution times for the APIs provided by this
  * class (as measured on a Google Pixel 6 running Android 16):
  *
- * | API                  | Time  |
- * |----------------------|-------|
- * | [colorToLatentColor] | 3.1µs |
- * | [latentColorToColor] | 40ns  |
- * | [latentColorsMix]    | 44ns  |
- * | [colorsMix]          | 6.3µs |
- * | [pigmentsMix]        | 34ns  |
+ * | API                  |  Time  |
+ * |----------------------|--------|
+ * | [colorToLatentColor] | 3.2µs  |
+ * | [latentColorToColor] | 85ns   |
+ * | [latentColorsMix]    | 74ns   |
+ * | [colorsMix]          | 6.4µs  |
+ * | [pigmentsMix]        | 80ns   |
  *
  * # Pigments mixing
  *
@@ -117,7 +118,7 @@ import kotlin.math.abs
  * API must equal exactly 1.
  */
 class Vibrance {
-    internal val model = PigmentsModel()
+    internal val model = ColorToPigmentsModel()
     internal val pigmentsBuffer = FloatArray(3)
 
     /**
@@ -150,7 +151,7 @@ class Vibrance {
         val latent0 = buffer[0]
         val latent1 = buffer[1]
         val latent2 = buffer[2]
-        val latent3 = 1.0f - (buffer[0] + buffer[1] + buffer[2])
+        val latent3 = 1.0f - (latent0 + latent1 + latent2)
 
         pigmentsMixLinear(latent0, latent1, latent2, latent3, buffer)
 
@@ -237,8 +238,8 @@ class Vibrance {
      * mix amount, it is recommended to instead precompute the latent colors for each input using
      * [colorToLatentColor], and mixing them using [latentColorsMix].
      *
-     * On a Google Pixel 6, using this method directly takes 6.3µs, while [latentColorsMix] only
-     * takes 42ns (150x faster).
+     * On a Google Pixel 6, using this method directly takes 6.4µs, while [latentColorsMix] only
+     * takes 74ns (85x faster).
      *
      * The component of each input color must be between 0 and 1.
      *
@@ -265,17 +266,15 @@ class Vibrance {
     ): FloatArray {
         requirePrecondition(color.size >= 3) { "color must have a size >= 3" }
 
-        val pigments = pigmentsBuffer
-
         val srcR = srcR.fastCoerceIn(0.0f, 1.0f)
         val srcG = srcG.fastCoerceIn(0.0f, 1.0f)
         val srcB = srcB.fastCoerceIn(0.0f, 1.0f)
 
         // Source
-        model.predict(srcR, srcG, srcB, pigments)
-        val srcPigment0 = pigments[0]
-        val srcPigment1 = pigments[1]
-        val srcPigment2 = pigments[2]
+        model.predict(srcR, srcG, srcB, color)
+        val srcPigment0 = color[0]
+        val srcPigment1 = color[1]
+        val srcPigment2 = color[2]
         val srcPigment3 = 1.0f - (srcPigment0 + srcPigment1 + srcPigment2)
 
         pigmentsMixLinear(srcPigment0, srcPigment1, srcPigment2, srcPigment3, color)
@@ -288,10 +287,10 @@ class Vibrance {
         val dstG = dstG.fastCoerceIn(0.0f, 1.0f)
         val dstB = dstB.fastCoerceIn(0.0f, 1.0f)
 
-        model.predict(dstR, dstG, dstB, pigments)
-        val dstPigment0 = pigments[0]
-        val dstPigment1 = pigments[1]
-        val dstPigment2 = pigments[2]
+        model.predict(dstR, dstG, dstB, color)
+        val dstPigment0 = color[0]
+        val dstPigment1 = color[1]
+        val dstPigment2 = color[2]
         val dstPigment3 = 1.0f - (dstPigment0 + dstPigment1 + dstPigment2)
 
         pigmentsMixLinear(dstPigment0, dstPigment1, dstPigment2, dstPigment3, color)
@@ -362,26 +361,54 @@ class Vibrance {
         c3: Float,
         color: FloatArray
     ) {
-        // This is a 2-degree polynomial fit of the original Kubelka-Munk pigments mixing implementation.
-        // The list of coefficients was generated using the script fit.py, and the resulting polynomial
-        // was optimized to avoid register spilling once compiled down to arm64 on Android.
-        val r = -0.0127424f +
-            c0 * (-0.7214596f + 1.2910803f * c0 - 0.5246562f * c1 - 0.6980598f * c2 - 0.7541017f * c3) +
-            c1 * ( 0.2552209f + 0.1244411f * c1 + 0.2461797f * c2 + 0.4003199f * c3) +
-            c2 * ( 0.2407041f + 0.1598632f * c2 + 0.4757960f * c3) +
-            c3 * ( 0.2831582f + 0.1619617f * c3)
+        // Mixing pigments to a linear sRGB color is implemented using a single layer,
+        // 16 neurons, neural network. The loops have been unrolled and the code
+        // re-organized to minimize register spilling and keep the instructions count
+        // low on arm64.
+        val h1 = max(0f, 0.0098267f + c0 * 0.1174974f + c1 * 0.5078091f - c2 * 0.2443916f - c3 * 0.3047154f)
+        var r = -0.0249582f - h1 * 0.0341629f
+        var g =  0.3584879f + h1 * 0.5760666f
+        var b =  0.0244421f - h1 * 0.0325691f
 
-        val g = 0.2139478f +
-            c0 * (-0.0582835f + 0.1025588f * c0 + 0.2028784f * c1 - 0.2009089f * c2 - 0.1457360f * c3) +
-            c1 * (-0.2934236f + 0.2478245f * c1 - 0.3797242f * c2 - 0.3576353f * c3) +
-            c2 * ( 0.1363333f + 0.2446950f * c2 + 0.4371069f * c3) +
-            c3 * ( 0.2306976f + 0.2836096f * c3)
+        val h2 = max(0f, -0.6286458f - c0 * 2.8839049f + c1 * 0.7584528f + c2 * 0.7916569f + c3 * 0.7818422f)
+        r += h2 * 2.7300307f
+        g += h2 * 0.1375640f
+        b -= h2 * 0.0742932f
 
-        val b = 0.2362212f +
-            c0 * ( 0.2472500f + 0.1354136f * c0 + 0.1677672f * c1 - 0.5183831f * c2 + 0.4517108f * c3) +
-            c1 * ( 0.2237250f + 0.0387428f * c1 - 0.3382904f * c2 + 0.3212758f * c3) +
-            c2 * (-0.7321315f + 0.8194536f * c2 - 0.7598101f * c3) +
-            c3 * ( 0.2784333f + 0.2584891f * c3)
+        val h3 = max(0f, 0.1541230f + c0 * 0.2867913f + c1 * 0.0568774f - c2 * 0.5446743f + c3 * 0.1930918f)
+        r -= h3 * 0.1012921f
+        g += h3 * 0.0580865f
+        b += h3 * 0.5416284f
+
+        val h5 = max(0f, 0.0747424f - c0 * 1.7088713f + c1 * 0.1860320f + c2 * 0.2180080f + c3 * 0.2195648f)
+        r += h5 * 1.1088474f
+        g += h5 * 0.0263522f
+        b -= h5 * 0.0335531f
+
+        val h6 = max(0f, -0.2055153f - c0 * 0.4361817f - c1 * 0.8967318f + c2 * 0.4045247f + c3 * 0.4025162f)
+        r += h6 * 0.1815542f
+        g += h6 * 0.9910546f
+        b -= h6 * 0.1118827f
+
+        val h9 = max(0f, 0.3792505f + c0 * 0.0286469f + c1 * 0.4794231f - c2 * 0.3951822f + c3 * 0.0329820f)
+        r += h9 * 0.1625491f
+        g -= h9 * 0.6810130f
+        b += h9 * 0.2960019f
+
+        val h10 = max(0f, -0.1452454f + c0 * 0.2560401f + c1 * 0.1701091f - c2 * 1.2982900f + c3 * 0.3221915f)
+        r -= h10 * 0.1341101f
+        g += h10 * 0.0278039f
+        b += h10 * 1.2155828f
+
+        val h11 = max(0f, 0.2256926f - c0 * 0.1793450f - c1 * 0.3194858f - c2 * 0.0576552f + c3 * 0.5597214f)
+        r += h11 * 0.0951412f
+        g += h11 * 0.6306976f
+        b += h11 * 0.1533901f
+
+        val h12 = max(0f, 0.0271525f + c0 * 0.2065663f + c1 * 0.1657660f - c2 * 0.9326340f + c3 * 0.2456872f)
+        r += h12 * 0.0214799f
+        g += h12 * 0.0282143f
+        b += h12 * 0.8276884f
 
         color[0] = r.fastCoerceIn(0.0f, 1.0f)
         color[1] = g.fastCoerceIn(0.0f, 1.0f)

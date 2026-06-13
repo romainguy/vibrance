@@ -74,7 +74,7 @@ To train the MLP:
   Training can proceed without this step, but it will yield large errors for some of the
   input colors when the blue component (Z coordinate in the LUT) is >220 (or 0.86 in the
   0..1 range).
-- Run `mlp.py train` to start the training process.
+- Run `color_to_pigments.py train` to start the training process.
 
 > [!NOTE]
 > The trained MLP will be exported in two formats in the `data/` directory: as a pair of
@@ -95,7 +95,7 @@ MLP with the ground truth from the 3D LUT.
 > The output values straight from the MLP may be slightly out of the 0..1 range. It is
 > recommended to clamp/saturate them.
 
-You can also visualize the MLP and compare it to the 3D LUT by running `viewer.py`.
+You can also visualize the MLP and compare it to the 3D LUT by running `unmix_viewer.py`.
 The UI has several controls:
 - A slider to select which of the 3 pigments to visualize.
 - A slider to select the blue slice in the 3D LUT.
@@ -131,9 +131,9 @@ is integrated using our chosen color-matching function. Even when optimized, thi
 requires, in our case, looping over 36 wavelengths. We can instead compute a good
 approximation by fitting a polynomial curve to our dataset.
 
-To perform the curve fit, run `fit.py`. The script will generate the feature names,
-intercepts, and coefficients for a 2-degree polynomial that takes 4 pigment concentration
-as inputs, and returns an sRGB color.
+To perform the curve fit, run `pigments_to_color.py poly`. The script will generate the
+feature names, intercepts, and coefficients for a 2-degree polynomial that takes 4 pigment
+concentration as inputs, and returns a linear sRGB color.
 
 ## 9. Jupyter Notebook
 
