@@ -181,7 +181,7 @@ class Pigments():
     def mix(self, concentration):
         rgb = self.mix_linear(concentration)
         color = rgb.T
-        color = _EOTF_sRGB(color)
+        color = OETF_sRGB(color)
         if rgb.ndim == 1:
             return color.flatten()
         else:
@@ -246,21 +246,21 @@ class Pigments():
 
     def lerp(self, rgb1, rgb2, t):
         c1 = self.unmix(rgb1)
-        r1 = rgb1 - self.mix(c1)
+        r1 = EOTF_sRGB(np.asarray(rgb1)) - self.mix_linear(c1)
 
         c2 = self.unmix(rgb2)
-        r2 = rgb2 - self.mix(c2)
+        r2 = EOTF_sRGB(np.asarray(rgb2)) - self.mix_linear(c2)
 
         c = (1 - t) * c1 + t * c2
         r = (1 - t) * r1 + t * r2
 
-        return np.clip(self.mix(c) + r, 0, 1)
+        return np.clip(OETF_sRGB(self.mix_linear(c) + r), 0, 1)
 
     def latent_lerp(self, c1, r1, c2, r2, t):
         c = (1 - t) * c1 + t * c2
         r = (1 - t) * r1 + t * r2
 
-        return np.clip(self.mix(c) + r, 0, 1)
+        return np.clip(OETF_sRGB(self.mix_linear(c) + r), 0, 1)
 
     def __generate_boundary_samples(self, steps=256):
         x = torch.arange(steps + 1, device=self.device, dtype=torch.float32)
@@ -448,7 +448,14 @@ def _xyz_to_rgb(x, y, z):
 
     return [r, g, b]
 
-def _EOTF_sRGB(x):
+def EOTF_sRGB(x):
+    return np.where(
+        x <= 0.04045,
+        (1.0 / 12.92) * x,
+        ((x + 0.055) / 1.055) ** 2.4
+    )
+
+def OETF_sRGB(x):
     return np.where(
         x <= 0.0031308,
         12.92 * x,
