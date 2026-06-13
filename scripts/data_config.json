@@ -1,9 +1,7 @@
 {
-    "pigments_K": "data/golden_paints_K.csv",
-    "pigments_S": "data/golden_paints_S.csv",
     "model_path_onnx": "data/pigments_mlp.onnx",
     "model_path_json": "data/pigments_mlp.json",
-    "model_path_kotlin": "../library/src/commonMain/kotlin/dev/romainguy/vibrance/PigmentsModelWeights.kt",
+    "model_path_kotlin": "../vibrance/src/commonMain/kotlin/dev/romainguy/vibrance/PigmentsModelWeights.kt",
     "lut_path_npy": "data/pigments_lut_256_fp16.npy",
     "lut_uint8_path_npy": "data/pigments_lut_256_uint8.npy"
 }

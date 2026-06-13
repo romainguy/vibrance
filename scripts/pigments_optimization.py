@@ -8,8 +8,4 @@ if config.use_optimized_pigments:
 
 pg = pigments.Pigments(config)
 
-data_config = pigments.load_data_config_from_json('data_config.json')
-pg.optimize_pigments(
-    data_config.pigments_K,
-    data_config.pigments_S
-)
+pg.optimize_pigments()

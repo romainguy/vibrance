@@ -17,16 +17,12 @@ def load_config_from_json(filepath):
 class DataConfig:
     def __init__(
         self,
-        pigments_K,
-        pigments_S,
         model_path_onnx,
         model_path_json,
         model_path_kotlin,
         lut_path_npy,
         lut_uint8_path_npy
     ):
-        self.pigments_K = pigments_K
-        self.pigments_S = pigments_S
         self.model_path_onnx = model_path_onnx
         self.model_path_json = model_path_json
         self.model_path_kotlin = model_path_kotlin
@@ -180,12 +176,31 @@ class Pigments():
 
     def mix(self, concentration):
         rgb = self.mix_linear(concentration)
-        color = rgb.T
-        color = OETF_sRGB(color)
+        color = OETF_sRGB(rgb.T)
         if rgb.ndim == 1:
             return color.flatten()
         else:
             return color.T
+
+    def mix_as_curve(self, concentration):
+        c0 = concentration[0]  # blue
+        c1 = concentration[1]  # magenta
+        c2 = concentration[2]  # yellow
+        c3 = concentration[3]  # white
+        return np.clip(np.array([
+             -0.0127424 - 0.7214596 * c0 + 0.2552209 * c1 + 0.2407041 * c2
+            + 0.2831582 * c3 + 1.2910803 * c0**2 - 0.5246562 * c0 * c1 - 0.6980598 * c0 * c2
+            - 0.7541017 * c0 * c3 + 0.1244411 * c1**2 + 0.2461797 * c1 * c2 + 0.4003199 * c1 * c3
+            + 0.1598632 * c2**2 + 0.4757960 * c2 * c3 + 0.1619617 * c3**2,
+                0.2139478 - 0.0582835 * c0 - 0.2934236 * c1 + 0.1363333 * c2
+            + 0.2306976 * c3 + 0.1025588 * c0**2 + 0.2028784 * c0 * c1 - 0.2009089 * c0 * c2
+            - 0.1457360 * c0 * c3 + 0.2478245 * c1**2 - 0.3797242 * c1 * c2 - 0.3576353 * c1 * c3
+            + 0.2446950 * c2**2 + 0.4371069 * c2 * c3 + 0.2836096 * c3**2,
+                0.2362212 + 0.2472500 * c0 + 0.2237250 * c1 - 0.7321315 * c2
+            + 0.2784333 * c3 + 0.1354136 * c0**2 + 0.1677672 * c0 * c1 - 0.5183831 * c0 * c2
+            + 0.4517108 * c0 * c3 + 0.0387428 * c1**2 - 0.3382904 * c1 * c2 + 0.3212758 * c1 * c3
+            + 0.8194536 * c2**2 - 0.7598101 * c2 * c3 + 0.2584891 * c3**2,
+        ]), 0, 1)
 
     def unmix_torch(self, target_rgb_tensor, steps=500, lr=0.05):
         device = target_rgb_tensor.device
@@ -204,12 +219,12 @@ class Pigments():
             
         return torch.nn.functional.softmax(c_raw, dim=-1).detach()
 
-    def unmix_lbfgs(self, target_rgb):
+    def unmix(self, target_rgb):
         c0 = np.array([0.25, 0.25, 0.25, 0.25])
         bounds = [(0.0, 1.0) for _ in range(4)]
 
         def objective(c):
-            predicted_rgb = self.mix(c)
+            predicted_rgb = self.mix_linear(c)
             mse_loss = np.linalg.norm(predicted_rgb - target_rgb) ** 2
             sum_penalty = 1000.0 * (np.sum(c) - 1.0) ** 2
             return mse_loss + sum_penalty
@@ -224,32 +239,12 @@ class Pigments():
         final_c = result.x / np.sum(result.x)
         return final_c if result.success else None
 
-    def unmix(self, target_rgb):
-        c0 = np.array([0.25, 0.25, 0.25, 0.25])
-
-        def objective(c):
-            predicted_rgb = self.mix(c)
-            return np.linalg.norm(predicted_rgb - target_rgb) ** 2
-
-        bounds = [(0.0, 1.0) for _ in range(4)]
-        constraints = {'type': 'eq', 'fun': lambda c: np.sum(c) - 1.0}
-
-        result = sp.optimize.minimize(
-            objective,
-            c0,
-            method='SLSQP',
-            bounds=bounds,
-            constraints=constraints
-        )
-
-        return result.x if result.success else None
-
     def lerp(self, rgb1, rgb2, t):
         c1 = self.unmix(rgb1)
-        r1 = EOTF_sRGB(np.asarray(rgb1)) - self.mix_linear(c1)
+        r1 = np.asarray(rgb1) - self.mix_linear(c1)
 
         c2 = self.unmix(rgb2)
-        r2 = EOTF_sRGB(np.asarray(rgb2)) - self.mix_linear(c2)
+        r2 = np.asarray(rgb2) - self.mix_linear(c2)
 
         c = (1 - t) * c1 + t * c2
         r = (1 - t) * r1 + t * r2
@@ -334,18 +329,18 @@ class Pigments():
         linear_rgb = torch.matmul(XYZ, M_XYZ_to_sRGB.T)
         
         # Mask out negaative values to keep pow differentiable
-        nan_mask = linear_rgb < 0.0
-        safe_linear_rgb = torch.where(
-            nan_mask, torch.ones_like(linear_rgb, device=self.device), linear_rgb)
+        # nan_mask = linear_rgb < 0.0
+        # safe_linear_rgb = torch.where(
+        #     nan_mask, torch.ones_like(linear_rgb, device=self.device), linear_rgb)
         
-        mask = linear_rgb <= 0.0031308
-        srgb = torch.where(
-            mask,
-            12.92 * linear_rgb,
-            1.055 * torch.pow(safe_linear_rgb, 1.0 / 2.4) - 0.055
-        )
+        # mask = linear_rgb <= 0.0031308
+        # srgb = torch.where(
+        #     mask,
+        #     12.92 * linear_rgb,
+        #     1.055 * torch.pow(safe_linear_rgb, 1.0 / 2.4) - 0.055
+        # )
 
-        return srgb
+        return linear_rgb
 
     def __optimize_pigments_adam(self, P_star_K, P_star_S, boundary_concentrations):
         print(f"Total: {boundary_concentrations.shape[0]} samples")
@@ -358,8 +353,8 @@ class Pigments():
         
         # Target
         with torch.no_grad():
-            orig_rgb = self.mix_torch(boundary_concentrations, P_star_K, P_star_S)
-            psi_orig = _psi_oklab(orig_rgb)
+            rgb = self.mix_torch(boundary_concentrations, P_star_K, P_star_S)
+            psi_original = _psi_oklab(rgb)
 
         alpha = 100_000.0
 
@@ -367,19 +362,19 @@ class Pigments():
             optimizer.zero_grad()
             
             # Get physical parameters
-            K_surr = torch.exp(torch.clamp(K_log, -10.0, 5.0))
-            S_surr = torch.exp(torch.clamp(S_log, -10.0, 5.0))
-            
-            surr_rgb = self.mix_torch(boundary_concentrations, K_surr, S_surr)
-            
+            K_surrogate = torch.exp(torch.clamp(K_log, -10.0, 5.0))
+            S_surrogate = torch.exp(torch.clamp(S_log, -10.0, 5.0))
+
+            surrogate_rgb = self.mix_torch(boundary_concentrations, K_surrogate, S_surrogate)
+
             # E_push
-            q = _phi_signed_distance(surr_rgb)
+            q = _phi_signed_distance(surrogate_rgb)
             q_outside = torch.maximum(q, torch.zeros_like(q))
-            E_push = torch.mean(torch.maximum(torch.zeros_like(q_outside), q_outside) ** 2)
+            E_push = torch.mean(q_outside ** 2)
 
             # E_pull
-            psi_surr = _psi_oklab(surr_rgb)
-            E_pull = torch.mean(torch.linalg.norm(psi_surr - psi_orig, dim=-1) ** 2)
+            psi_surrogate = _psi_oklab(surrogate_rgb)
+            E_pull = torch.mean(torch.linalg.norm(psi_surrogate - psi_original, dim=-1) ** 2)
             
             loss = E_push + alpha * E_pull
             loss.backward()
@@ -424,7 +419,7 @@ class Pigments():
         print(f"Optimizing with {self.config.optimization_sample_count} samples per pigment")
 
         boundary_concentrations = self.__generate_boundary_samples(
-            self.config.optimization_sample_count, self.device
+            self.config.optimization_sample_count
         )
 
         K_surrogate, S_surrogate = self.__optimize_pigments_adam(
@@ -492,17 +487,16 @@ def _phi_signed_distance(rgb):
     return outside_dist + inside_dist
 
 def _psi_oklab(rgb):
-    # 1. sRGB to Linear sRGB
     # Clamp to keep differentiation valid
-    rgb_clipped = torch.clamp(rgb, 0.0, 1.0)
-    mask = rgb_clipped <= 0.04045
-    linear_rgb = torch.where(
-        mask,
-        rgb_clipped / 12.92,
-        torch.pow((rgb_clipped + 0.055) / 1.055, 2.4)
-    )
-    
-    # 2. Linear sRGB to LMS
+    # rgb_clipped = torch.clamp(rgb, 0.0, 1.0)
+    # mask = rgb_clipped <= 0.04045
+    # linear_rgb = torch.where(
+    #     mask,
+    #     rgb_clipped / 12.92,
+    #     torch.pow((rgb_clipped + 0.055) / 1.055, 2.4)
+    # )
+    linear_rgb = torch.clamp(rgb, 0.0, 1.0)
+
     m1 = torch.tensor([
         [0.4122214708, 0.5363325363, 0.0514459929],
         [0.2119034982, 0.6806995451, 0.1073969566],
@@ -511,11 +505,8 @@ def _psi_oklab(rgb):
     
     lms = torch.matmul(linear_rgb, m1.T)
     
-    # 3. Non-linear response
-    # We add 1e-8 to keep differentiation stable
     lms_cubed = torch.sign(lms) * torch.pow(torch.abs(lms) + 1e-8, 1.0 / 3.0)
-    
-    # 4. LMS to Oklab
+
     m2 = torch.tensor([
         [ 0.2104542553,  0.7936177850, -0.0040720468],
         [ 1.9779984951, -2.4285922050,  0.4505937099],
