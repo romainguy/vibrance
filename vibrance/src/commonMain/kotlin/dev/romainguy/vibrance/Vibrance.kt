@@ -361,8 +361,8 @@ class Vibrance {
         c3: Float,
         color: FloatArray
     ) {
-        // Mixing pigments to a linear sRGB color is implemented using a single layer,
-        // 16 neurons, neural network. The loops have been unrolled and the code
+        // Mixing pigments to a linear sRGB color is implemented using a single hidden
+        // layer, 16 neurons, neural network. The loops have been unrolled and the code
         // re-organized to minimize register spilling and keep the instructions count
         // low on arm64.
         val h1 = max(0f, 0.0098267f + c0 * 0.1174974f + c1 * 0.5078091f - c2 * 0.2443916f - c3 * 0.3047154f)
