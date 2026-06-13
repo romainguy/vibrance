@@ -23,15 +23,15 @@ private const val PI: Float = 3.1415927f
  *
  * Note: this class is not thread-safe. It is however cheap to allocate per thread.
  */
-internal class PigmentsModel {
+internal class ColorToPigmentsModel {
     private val positionalEncodingFrequencies: FloatArray =
-            PigmentsModelWeights.positionalEncodingFrequencies
-    private val layer0Weights: FloatArray = PigmentsModelWeights.net0Weight
-    private val layer0Bias: FloatArray = PigmentsModelWeights.net0Bias
-    private val layer2Weights: FloatArray = PigmentsModelWeights.net2Weight
-    private val layer2Bias: FloatArray = PigmentsModelWeights.net2Bias
-    private val layer4Weights: FloatArray = PigmentsModelWeights.net4Weight
-    private val layer4Bias: FloatArray = PigmentsModelWeights.net4Bias
+            ColorToPigmentsWeights.positionalEncodingFrequencies
+    private val layer0Weights: FloatArray = ColorToPigmentsWeights.net0Weight
+    private val layer0Bias: FloatArray = ColorToPigmentsWeights.net0Bias
+    private val layer2Weights: FloatArray = ColorToPigmentsWeights.net2Weight
+    private val layer2Bias: FloatArray = ColorToPigmentsWeights.net2Bias
+    private val layer4Weights: FloatArray = ColorToPigmentsWeights.net4Weight
+    private val layer4Bias: FloatArray = ColorToPigmentsWeights.net4Bias
 
     // Pre-allocate working buffers
     private val encodedBuffer = FloatArray(3 + (3 * 2 * positionalEncodingFrequencies.size))
@@ -62,8 +62,7 @@ internal class PigmentsModel {
         }
     }
 
-    private fun encodePosition(r: Float, g: Float, b: Float) {
-        val buffer = encodedBuffer
+    private fun encodePosition(r: Float, g: Float, b: Float, buffer: FloatArray) {
         buffer[0] = r
         buffer[1] = g
         buffer[2] = b
@@ -95,7 +94,7 @@ internal class PigmentsModel {
      *   be written, starting at index 0. The array must be of at least size 3.
      */
     fun predict(r: Float, g: Float, b: Float, concentrations: FloatArray): FloatArray {
-        encodePosition(r, g, b)
+        encodePosition(r, g, b, encodedBuffer)
 
         // Combine linear layer + ReLU step to reduce instruction count
         linearLayerReLU(encodedBuffer, layer0Weights, layer0Bias, h1Buffer)

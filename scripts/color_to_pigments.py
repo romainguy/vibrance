@@ -261,7 +261,7 @@ def query_single_color(r, g, b, data_config, dataset):
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
-        print("python3 mlp.py [train|query|autosearch]")
+        print("python3 color_to_pigments.py [train|query|autosearch]")
         sys.exit(0)
 
     command = sys.argv[1]
@@ -273,7 +273,7 @@ if __name__ == "__main__":
         train(data_config, dataset)
     elif command == "query":
         if len(sys.argv) != 5:
-            print("Usage: python3 mlp.py query r g b")
+            print("Usage: python3 color_to_pigments.py query r g b")
             sys.exit(1)
         r, g, b = map(int, sys.argv[2:5])
         query_single_color(r, g, b, data_config, dataset)

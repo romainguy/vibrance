@@ -10,16 +10,16 @@ class VibranceTest {
     @Test
     fun colorToLatentColor() {
         val expected = mapOf(
-            floatArrayOf(0.0f, 0.0f, 1.0f) to floatArrayOf(0.3211604f, 0.6774757f, 0.004375281f, 0.0f, -0.08724372f, 0.42347562f),
-            floatArrayOf(1.0f, 1.0f, 0.0f) to floatArrayOf(0.0f, 0.00677f, 0.9853404f, 0.39084148f, 0.21717536f, 0.0f),
-            floatArrayOf(0.0f, 0.0f, 1.0f) to floatArrayOf(0.3211604f, 0.6774757f, 0.004375281f, 0.0f, -0.08724372f, 0.42347562f),
-            floatArrayOf(1.0f, 0.0f, 0.0f) to floatArrayOf(0.0f, 0.559122f, 0.43699133f, 0.48832422f, -0.19669288f, -0.102197245f),
-            floatArrayOf(1.0f, 0.0f, 1.0f) to floatArrayOf(0.0012811907f, 0.99861294f, 0.0f, 0.5395005f, -0.02276751f, 0.44685185f),
-            floatArrayOf(0.1f, 0.7f, 0.1f) to floatArrayOf(0.25876212f, 0.0027093515f, 0.73810565f, 0.010022826f, -0.011057317f, -0.040417545f),
-            floatArrayOf(1.0f, 1.0f, 1.0f) to floatArrayOf(0.004451909f, 0.006105016f, 0.002652506f, 0.43094885f, 0.1666314f, 0.15562302f),
-            floatArrayOf(0.0f, 0.5f, 1.0f) to floatArrayOf(0.41332102f, 0.33704773f, 4.5567285E-6f, 0.0f, -0.0074001253f, 0.32095063f),
-            floatArrayOf(1.0f, 1.0f, 0.0f) to floatArrayOf(0.0f, 0.00677f, 0.9853404f, 0.39084148f, 0.21717536f, 0.0f),
-            floatArrayOf(0.9f, 0.0f, 0.1f) to floatArrayOf(1.5143969E-4f, 0.6298656f, 0.36941552f, 0.28363276f, -0.1765817f, -0.112840764f)
+            floatArrayOf(0.0f, 0.0f, 1.0f) to floatArrayOf(0.9765675f, 0.004158199f, 3.9298087E-4f, 0.0f, -0.2219084f, 0.28333044f),
+            floatArrayOf(1.0f, 1.0f, 0.0f) to floatArrayOf(0.0014030053f, 0.0f, 0.65452236f, 0.18759239f, 0.267263f, -0.07855922f),
+            floatArrayOf(0.0f, 0.0f, 1.0f) to floatArrayOf(0.9765675f, 0.004158199f, 3.9298087E-4f, 0.0f, -0.2219084f, 0.28333044f),
+            floatArrayOf(1.0f, 0.0f, 0.0f) to floatArrayOf(0.0f, 0.5241588f, 0.46216163f, 0.25057334f, -0.19671276f, -0.13793278f),
+            floatArrayOf(1.0f, 0.0f, 1.0f) to floatArrayOf(0.0f, 0.49043342f, 0.0f, 0.23428977f, -0.2642768f, 0.2879299f),
+            floatArrayOf(0.1f, 0.7f, 0.1f) to floatArrayOf(0.1748402f, 0.010940269f, 0.81081474f, 0.002984031f, 0.007104218f, -0.053069822f),
+            floatArrayOf(1.0f, 1.0f, 1.0f) to floatArrayOf(0.0f, 0.0024201833f, 0.0f, 0.1566894f, 0.17527312f, 0.14781255f),
+            floatArrayOf(0.0f, 0.5f, 1.0f) to floatArrayOf(0.62648684f, 0.00920548f, 0.0010208469f, -0.018665671f, -0.0949896f, 0.22143108f),
+            floatArrayOf(1.0f, 1.0f, 0.0f) to floatArrayOf(0.0014030053f, 0.0f, 0.65452236f, 0.18759239f, 0.267263f, -0.07855922f),
+            floatArrayOf(0.9f, 0.0f, 0.1f) to floatArrayOf(0.0f, 0.5875807f, 0.41303727f, 0.0416829f, -0.17472038f, -0.13724875f)
         )
 
         for ((color, latent) in expected) {
@@ -31,16 +31,16 @@ class VibranceTest {
     @Test
     fun latentColorToColor() {
         val expected = mapOf(
-            floatArrayOf(0.0f, 0.0f, 1.0f) to floatArrayOf(0.3211604f, 0.6774757f, 0.004375281f, 0.0f, -0.08724372f, 0.42347562f),
-            floatArrayOf(1.0f, 1.0f, 0.0f) to floatArrayOf(0.0f, 0.00677f, 0.9853404f, 0.39084148f, 0.21717536f, 0.0f),
-            floatArrayOf(0.0f, 0.0f, 1.0f) to floatArrayOf(0.3211604f, 0.6774757f, 0.004375281f, 0.0f, -0.08724372f, 0.42347562f),
-            floatArrayOf(1.0f, 0.0f, 0.0f) to floatArrayOf(0.0f, 0.559122f, 0.43699133f, 0.48832422f, -0.19669288f, -0.102197245f),
-            floatArrayOf(1.0f, 0.0f, 1.0f) to floatArrayOf(0.0012811907f, 0.99861294f, 0.0f, 0.5395005f, -0.02276751f, 0.44685185f),
-            floatArrayOf(0.1f, 0.7f, 0.1f) to floatArrayOf(0.25876212f, 0.0027093515f, 0.73810565f, 0.010022826f, -0.011057317f, -0.040417545f),
-            floatArrayOf(1.0f, 1.0f, 1.0f) to floatArrayOf(0.004451909f, 0.006105016f, 0.002652506f, 0.43094885f, 0.1666314f, 0.15562302f),
-            floatArrayOf(0.0f, 0.5f, 1.0f) to floatArrayOf(0.41332102f, 0.33704773f, 4.5567285E-6f, 0.0f, -0.0074001253f, 0.32095063f),
-            floatArrayOf(1.0f, 1.0f, 0.0f) to floatArrayOf(0.0f, 0.00677f, 0.9853404f, 0.39084148f, 0.21717536f, 0.0f),
-            floatArrayOf(0.9f, 0.0f, 0.1f) to floatArrayOf(1.5143969E-4f, 0.6298656f, 0.36941552f, 0.28363276f, -0.1765817f, -0.112840764f)
+            floatArrayOf(0.0f, 0.0f, 1.0f) to floatArrayOf(0.9765675f, 0.004158199f, 3.9298087E-4f, 0.0f, -0.2219084f, 0.28333044f),
+            floatArrayOf(1.0f, 1.0f, 0.0f) to floatArrayOf(0.0014030053f, 0.0f, 0.65452236f, 0.18759239f, 0.267263f, -0.07855922f),
+            floatArrayOf(0.0f, 0.0f, 1.0f) to floatArrayOf(0.9765675f, 0.004158199f, 3.9298087E-4f, 0.0f, -0.2219084f, 0.28333044f),
+            floatArrayOf(1.0f, 0.0f, 0.0f) to floatArrayOf(0.0f, 0.5241588f, 0.46216163f, 0.25057334f, -0.19671276f, -0.13793278f),
+            floatArrayOf(1.0f, 0.0f, 1.0f) to floatArrayOf(0.0f, 0.49043342f, 0.0f, 0.23428977f, -0.2642768f, 0.2879299f),
+            floatArrayOf(0.1f, 0.7f, 0.1f) to floatArrayOf(0.1748402f, 0.010940269f, 0.81081474f, 0.002984031f, 0.007104218f, -0.053069822f),
+            floatArrayOf(1.0f, 1.0f, 1.0f) to floatArrayOf(0.0f, 0.0024201833f, 0.0f, 0.1566894f, 0.17527312f, 0.14781255f),
+            floatArrayOf(0.0f, 0.5f, 1.0f) to floatArrayOf(0.62648684f, 0.00920548f, 0.0010208469f, -0.018665671f, -0.0949896f, 0.22143108f),
+            floatArrayOf(1.0f, 1.0f, 0.0f) to floatArrayOf(0.0014030053f, 0.0f, 0.65452236f, 0.18759239f, 0.267263f, -0.07855922f),
+            floatArrayOf(0.9f, 0.0f, 0.1f) to floatArrayOf(0.0f, 0.5875807f, 0.41303727f, 0.0416829f, -0.17472038f, -0.13724875f)
         )
 
         for ((color, latent) in expected) {
@@ -100,10 +100,10 @@ class VibranceTest {
     @Test
     fun pigmentsMix() {
         val color = vibrance.pigmentsMix(1.0f, 0.0f, 0.0f, 0.0f)
-        assertAlmostEquals(floatArrayOf(0.0f, 0.5224304f, 0.8720593f), color)
+        assertAlmostEquals(floatArrayOf(0.0f, 0.50486183f, 0.8624178f), color)
 
         val color2 = vibrance.pigmentsMix(0.0f, 1.0f, 0.0f, 0.0f)
-        assertAlmostEquals(floatArrayOf(0.7119885f, 0.16110602f, 0.7692347f), color2)
+        assertAlmostEquals(floatArrayOf(0.8649926f, 0.37347656f, 0.76584274f), color2)
     }
 
     @Test

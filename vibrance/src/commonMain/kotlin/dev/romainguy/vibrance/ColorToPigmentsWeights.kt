@@ -2,7 +2,7 @@
 
 package dev.romainguy.vibrance
 
-internal object PigmentsModelWeights {
+internal object ColorToPigmentsWeights {
     val positionalEncodingFrequencies: FloatArray = floatArrayOf(1.0f, 2.0f, 4.0f, 8.0f)
 
     val net0Weight: FloatArray = floatArrayOf(
