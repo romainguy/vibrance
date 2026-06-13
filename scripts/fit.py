@@ -23,7 +23,7 @@ def generate_python_function(feature_names, intercepts, coefficients, func_name=
     num_outputs = len(intercepts)
     
     lines = [
-        f"def {func_name}self, concentration):",
+        f"def {func_name}(self, concentration):",
         "    c0 = concentration[0]  # blue",
         "    c1 = concentration[1]  # magenta",
         "    c2 = concentration[2]  # yellow",
