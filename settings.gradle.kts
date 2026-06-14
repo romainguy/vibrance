@@ -17,3 +17,4 @@ rootProject.name = "vibrance"
 include(":vibrance")
 include(":vibrance-compose")
 include(":vibrance-benchmark")
+include(":vibrance-compose-demo")

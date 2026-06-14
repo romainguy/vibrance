@@ -2,6 +2,7 @@
   <dictionary name="project">
     <words>
       <w>Hansa</w>
+      <w>Interpolators</w>
       <w>Kubelka</w>
       <w>Numpy</w>
       <w>eotf</w>
