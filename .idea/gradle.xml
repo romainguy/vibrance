@@ -11,6 +11,7 @@
             <option value="$PROJECT_DIR$/vibrance" />
             <option value="$PROJECT_DIR$/vibrance-benchmark" />
             <option value="$PROJECT_DIR$/vibrance-compose" />
+            <option value="$PROJECT_DIR$/vibrance-compose-demo" />
           </set>
         </option>
       </GradleProjectSettings>

@@ -6,7 +6,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.node.DrawModifierNode
 
-internal actual class PaintGradientNode : DrawModifierNode, Modifier.Node() {
+internal actual class PaintGradientNode actual constructor(orientation: GradientOrientation) : DrawModifierNode, Modifier.Node() {
     actual val startLatentColor = FloatArray(6)
     actual val endLatentColor = FloatArray(6)
 

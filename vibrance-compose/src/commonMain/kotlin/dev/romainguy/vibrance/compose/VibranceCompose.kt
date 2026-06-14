@@ -8,10 +8,19 @@ import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import dev.romainguy.vibrance.Vibrance
 
+internal enum class GradientOrientation {
+    Vertical,
+    Horizontal
+}
+
 fun Modifier.verticalPaintGradient(startColor: Color, encColor: Color) =
-    this then PaintGradientElement(startColor, encColor)
+    this then PaintGradientElement(GradientOrientation.Vertical, startColor, encColor)
+
+fun Modifier.horizontalPaintGradient(startColor: Color, encColor: Color) =
+    this then PaintGradientElement(GradientOrientation.Horizontal, startColor, encColor)
 
 private data class PaintGradientElement(
+    val orientation: GradientOrientation,
     val startColor: Color,
     val endColor: Color
 ) : ModifierNodeElement<PaintGradientNode>() {
@@ -20,7 +29,7 @@ private data class PaintGradientElement(
     override fun create(): PaintGradientNode {
         val startSrgb = startColor.convert(ColorSpaces.Srgb)
         val endSrgb = endColor.convert(ColorSpaces.Srgb)
-        val node = PaintGradientNode()
+        val node = PaintGradientNode(orientation)
 
         vibrance.colorToLatentColor(startSrgb.red, startSrgb.green, startSrgb.blue, node.startLatentColor)
         vibrance.colorToLatentColor(endSrgb.red, endSrgb.green, endSrgb.blue, node.endLatentColor)
@@ -37,7 +46,7 @@ private data class PaintGradientElement(
 }
 
 @Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
-internal expect class PaintGradientNode() : DrawModifierNode, Modifier.Node {
+internal expect class PaintGradientNode(orientation: GradientOrientation) : DrawModifierNode, Modifier.Node {
     val startLatentColor: FloatArray
     val endLatentColor: FloatArray
 

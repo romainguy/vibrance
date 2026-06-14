@@ -1,6 +1,7 @@
 [versions]
 agp = "9.0.1"
 android-minSdk = "24"
+android-compose-minSdk = "33"
 android-compileSdk = "36"
 android-targetSdk = "36"
 benchmark = "1.5.0-alpha06"
@@ -14,6 +15,11 @@ kotlin = "2.4.0"
 runner = "1.7.0"
 vanniktechMavenPublish = "0.36.0"
 ui = "1.11.2"
+coreKtx = "1.10.1"
+espressoCore = "3.5.1"
+lifecycleRuntimeKtx = "2.6.1"
+activityCompose = "1.8.0"
+composeBom = "2024.09.00"
 
 [libraries]
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose" }
@@ -23,6 +29,17 @@ junit = { group = "androidx.test.ext", name = "junit", version.ref = "junit" }
 junit-junit = { group = "junit", name = "junit", version.ref = "junitVersion" }
 benchmark-junit4 = { group = "androidx.benchmark", name = "benchmark-junit4", version.ref = "benchmarkJunit4" }
 ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
+core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
+activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+material3 = { group = "androidx.compose.material3", name = "material3" }
 
 [plugins]
 android-library = { id = "com.android.library", version.ref = "agp" }
@@ -33,3 +50,4 @@ dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 jetbrainsCompose = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 vanniktech-mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktechMavenPublish" }
+android-application = { id = "com.android.application", version.ref = "agp" }
