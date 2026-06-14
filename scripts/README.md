@@ -141,4 +141,4 @@ The notebook in `Paint Mixing.ipynb` was the original implementation of the scri
 detailed above. It now contains a simple visualization of various color ramps through
 the pigments mixing process.
 
-![Notebook Ramps](images/notebook_ramps.png)
+![Notebook Ramps](images/notebook-ramps.png)

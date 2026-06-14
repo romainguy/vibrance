@@ -1,5 +1,3 @@
-@file:Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
-
 package dev.romainguy.vibrance.compose
 
 import android.graphics.RuntimeShader
@@ -28,6 +26,7 @@ half4 main(float2 fragCoord) {
 }
 """
 
+@Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
 internal actual class PaintGradientNode actual constructor(orientation: GradientOrientation) : DrawModifierNode,
     Modifier.Node() {
 

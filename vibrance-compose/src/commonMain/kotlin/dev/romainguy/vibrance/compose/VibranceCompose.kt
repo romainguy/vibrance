@@ -8,16 +8,24 @@ import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import dev.romainguy.vibrance.Vibrance
 
+/**
+ * Add a vertical gradient covering the entire size of the modifier's element.
+ * The gradient goes from [startColor] at the top, to [endColor] at the bottom.
+ */
+fun Modifier.verticalPaintGradient(startColor: Color, endColor: Color) =
+    this then PaintGradientElement(GradientOrientation.Vertical, startColor, endColor)
+
+/**
+ * Add a horizontal gradient covering the entire size of the modifier's element.
+ * The gradient goes from [startColor] on the left, to [endColor] on the right.
+ */
+fun Modifier.horizontalPaintGradient(startColor: Color, endColor: Color) =
+    this then PaintGradientElement(GradientOrientation.Horizontal, startColor, endColor) // TODO: RTL?
+
 internal enum class GradientOrientation {
     Vertical,
     Horizontal
 }
-
-fun Modifier.verticalPaintGradient(startColor: Color, encColor: Color) =
-    this then PaintGradientElement(GradientOrientation.Vertical, startColor, encColor)
-
-fun Modifier.horizontalPaintGradient(startColor: Color, encColor: Color) =
-    this then PaintGradientElement(GradientOrientation.Horizontal, startColor, encColor)
 
 private data class PaintGradientElement(
     val orientation: GradientOrientation,
@@ -40,6 +48,7 @@ private data class PaintGradientElement(
     override fun update(node: PaintGradientNode) {
         val startSrgb = startColor.convert(ColorSpaces.Srgb)
         val endSrgb = endColor.convert(ColorSpaces.Srgb)
+
         vibrance.colorToLatentColor(startSrgb.red, startSrgb.green, startSrgb.blue, node.startLatentColor)
         vibrance.colorToLatentColor(endSrgb.red, endSrgb.green, endSrgb.blue, node.endLatentColor)
     }
