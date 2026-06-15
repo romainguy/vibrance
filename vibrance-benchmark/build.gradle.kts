@@ -5,11 +5,7 @@ plugins {
 
 android {
     namespace = "dev.romainguy.vibrance.benchmark"
-    compileSdk {
-        version = release(libs.versions.android.compileSdk.get().toInt()) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
         minSdk = libs.versions.android.minSdk.get().toInt()

@@ -1,9 +1,9 @@
 [versions]
-agp = "9.0.1"
+agp = "9.2.1"
 android-minSdk = "24"
-android-compose-minSdk = "33"
-android-compileSdk = "36"
-android-targetSdk = "36"
+android-app-minSdk = "26"
+android-compileSdk = "37"
+android-targetSdk = "37"
 benchmark = "1.5.0-alpha06"
 benchmarkJunit4 = "1.4.1"
 compose = "1.11.1"
@@ -15,11 +15,10 @@ kotlin = "2.4.0"
 runner = "1.7.0"
 vanniktechMavenPublish = "0.36.0"
 ui = "1.11.2"
-coreKtx = "1.10.1"
-espressoCore = "3.5.1"
-lifecycleRuntimeKtx = "2.6.1"
-activityCompose = "1.8.0"
-composeBom = "2024.09.00"
+coreKtx = "1.19.0"
+lifecycleRuntimeKtx = "2.10.0"
+activityCompose = "1.13.0"
+composeBom = "2026.05.01"
 
 [libraries]
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose" }
@@ -30,7 +29,6 @@ junit-junit = { group = "junit", name = "junit", version.ref = "junitVersion" }
 benchmark-junit4 = { group = "androidx.benchmark", name = "benchmark-junit4", version.ref = "benchmarkJunit4" }
 ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
@@ -38,7 +36,6 @@ ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
 ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 material3 = { group = "androidx.compose.material3", name = "material3" }
 
 [plugins]
