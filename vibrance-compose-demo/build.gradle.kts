@@ -5,15 +5,11 @@ plugins {
 
 android {
     namespace = "dev.romainguy.vibrance.demo"
-    compileSdk {
-        version = release(libs.versions.android.compileSdk.get().toInt()) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
         applicationId = "dev.romainguy.vibrance.demo"
-        minSdk = libs.versions.android.compose.minSdk.get().toInt()
+        minSdk = libs.versions.android.app.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"

@@ -1,5 +1,6 @@
 package dev.romainguy.vibrance.compose
 
+import androidx.annotation.RequiresApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
@@ -12,6 +13,7 @@ import dev.romainguy.vibrance.Vibrance
  * Add a vertical gradient covering the entire size of the modifier's element.
  * The gradient goes from [startColor] at the top, to [endColor] at the bottom.
  */
+@RequiresApi(33)
 fun Modifier.verticalPaintGradient(startColor: Color, endColor: Color) =
     this then PaintGradientElement(GradientOrientation.Vertical, startColor, endColor)
 
@@ -19,6 +21,7 @@ fun Modifier.verticalPaintGradient(startColor: Color, endColor: Color) =
  * Add a horizontal gradient covering the entire size of the modifier's element.
  * The gradient goes from [startColor] on the left, to [endColor] on the right.
  */
+@RequiresApi(33)
 fun Modifier.horizontalPaintGradient(startColor: Color, endColor: Color) =
     this then PaintGradientElement(GradientOrientation.Horizontal, startColor, endColor) // TODO: RTL?
 
