@@ -38,7 +38,7 @@ class PigmentsConfig:
         canvas_reflectance=1.0,
         optimization_sample_count=384
     ):
-        """Calculate the final price with tax.
+        """
         Args:
             use_optimized_pigments (bool, optional): When set to false, we load the original
                 pigments and run an optimization steps to produce RGB colors that are in-gamut.
