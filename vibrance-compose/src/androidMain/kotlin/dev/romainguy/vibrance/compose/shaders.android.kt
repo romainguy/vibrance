@@ -1,8 +1,11 @@
 package dev.romainguy.vibrance.compose
 
 import android.graphics.RuntimeShader
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 
+@RequiresApi(33)
 internal fun ContentDrawScope.updatePigmentsMixUniform(
     shader: RuntimeShader,
     startLatentColor: FloatArray,

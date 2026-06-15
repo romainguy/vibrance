@@ -2,6 +2,7 @@ package dev.romainguy.vibrance.compose
 
 import androidx.annotation.RequiresApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
@@ -15,7 +16,13 @@ import dev.romainguy.vibrance.Vibrance
  */
 @RequiresApi(33)
 fun Modifier.verticalPaintGradient(startColor: Color, endColor: Color) =
-    this then PaintGradientElement(GradientOrientation.Vertical, startColor, endColor)
+    this then PaintGradientElement(
+        GradientType.Vertical,
+        Offset.Unspecified,
+        startColor,
+        Offset.Unspecified,
+        endColor
+    )
 
 /**
  * Add a horizontal gradient covering the entire size of the modifier's element.
@@ -23,16 +30,44 @@ fun Modifier.verticalPaintGradient(startColor: Color, endColor: Color) =
  */
 @RequiresApi(33)
 fun Modifier.horizontalPaintGradient(startColor: Color, endColor: Color) =
-    this then PaintGradientElement(GradientOrientation.Horizontal, startColor, endColor) // TODO: RTL?
+    this then PaintGradientElement( // TODO: RTL?
+        GradientType.Horizontal,
+        Offset.Unspecified,
+        startColor,
+        Offset.Unspecified,
+        endColor
+    )
 
-internal enum class GradientOrientation {
-    Vertical,
-    Horizontal
+/**
+ * Add a gradient from the specified start position ([startOffset]), to the
+ * specified end position ([endOffset]).
+ */
+@RequiresApi(33)
+fun Modifier.paintGradient(
+    startOffset: Offset,
+    startColor: Color,
+    endOffset: Offset,
+    endColor: Color
+) =
+    this then PaintGradientElement(
+        GradientType.Directional,
+        startOffset,
+        startColor,
+        endOffset,
+        endColor
+    )
+
+internal enum class GradientType {
+    Directional,
+    Horizontal,
+    Vertical
 }
 
 private data class PaintGradientElement(
-    val orientation: GradientOrientation,
+    val orientation: GradientType,
+    val startOffset: Offset,
     val startColor: Color,
+    val endOffset: Offset,
     val endColor: Color
 ) : ModifierNodeElement<PaintGradientNode>() {
     val vibrance = Vibrance()
@@ -40,7 +75,7 @@ private data class PaintGradientElement(
     override fun create(): PaintGradientNode {
         val startSrgb = startColor.convert(ColorSpaces.Srgb)
         val endSrgb = endColor.convert(ColorSpaces.Srgb)
-        val node = PaintGradientNode(orientation)
+        val node = PaintGradientNode(orientation, startOffset, endOffset)
 
         vibrance.colorToLatentColor(startSrgb.red, startSrgb.green, startSrgb.blue, node.startLatentColor)
         vibrance.colorToLatentColor(endSrgb.red, endSrgb.green, endSrgb.blue, node.endLatentColor)
@@ -58,7 +93,11 @@ private data class PaintGradientElement(
 }
 
 @Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
-internal expect class PaintGradientNode(orientation: GradientOrientation) : DrawModifierNode, Modifier.Node {
+internal expect class PaintGradientNode(
+    type: GradientType,
+    startOffset: Offset,
+    endOffset: Offset
+) : DrawModifierNode, Modifier.Node {
     val startLatentColor: FloatArray
     val endLatentColor: FloatArray
 
