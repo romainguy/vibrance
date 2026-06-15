@@ -18,10 +18,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.romainguy.vibrance.compose.horizontalPaintGradient
+import dev.romainguy.vibrance.compose.paintGradient
 import dev.romainguy.vibrance.compose.verticalPaintGradient
 import dev.romainguy.vibrance.demo.ui.theme.VibranceTheme
 
@@ -87,13 +89,19 @@ fun PaintMix(modifier: Modifier = Modifier) {
             Box(Modifier
                 .fillMaxHeight()
                 .weight(1.0f)
-                .verticalPaintGradient(Color.White, Color.Blue)
+                .paintGradient(Offset.Zero, Color.White, Offset.Infinite, Color.Blue)
             )
             Spacer(Modifier.width(16.dp))
             Box(Modifier
                 .fillMaxHeight()
                 .weight(1.0f)
-                .background(brush = Brush.verticalGradient(listOf(Color.White, Color.Blue)))
+                .background(
+                    brush = Brush.linearGradient(
+                        listOf(Color.White, Color.Blue),
+                        start = Offset.Zero,
+                        end = Offset.Infinite
+                    )
+                )
             )
         }
     }
