@@ -91,8 +91,6 @@ internal actual class PaintGradientNode actual constructor(
         val shader = pigmentsMixShader
 
         val startSrgb = startColor.convert(ColorSpaces.Srgb)
-        val endSrgb = endColor.convert(ColorSpaces.Srgb)
-
         vibrance.colorToLatentColor(
             startSrgb.red,
             startSrgb.green,
@@ -112,6 +110,7 @@ internal actual class PaintGradientNode actual constructor(
             startLatentColor[5]
         )
 
+        val endSrgb = endColor.convert(ColorSpaces.Srgb)
         vibrance.colorToLatentColor(endSrgb.red, endSrgb.green, endSrgb.blue, endLatentColor)
         shader.setFloatUniform(
             UniformLatent2,
