@@ -14,9 +14,12 @@ internal actual class PaintGradientNode actual constructor(
     actual override fun ContentDrawScope.draw() {
     }
 
-    actual fun updateOffsets(startOffset: Offset, endOffset: Offset) {
+    actual fun updateLinearOffsets(startOffset: Offset, endOffset: Offset) {
     }
 
     actual fun updateColors(startColor: Color, endColor: Color) {
+    }
+
+    actual fun updateCircle(centerOffset: Offset, radius: Float) {
     }
 }

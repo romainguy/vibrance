@@ -5,6 +5,7 @@ import androidx.annotation.RequiresApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
@@ -19,9 +20,15 @@ private fun uniformsSource(type: GradientType) = when (type) {
     """.trimIndent()
     GradientType.Horizontal -> ""
     GradientType.Vertical -> ""
+    GradientType.Radial -> """
+        uniform float3 $UniformCenterRadius;
+    """.trimIndent()
+    GradientType.Sweep -> """
+        uniform float2 $UniformCenter;
+    """.trimIndent()
 }
 
-private fun getInterpolator(type: GradientType) = when (type) {
+private fun interpolator(type: GradientType) = when (type) {
     GradientType.Directional -> """
         float2 axis = $UniformPosition2 - $UniformPosition1;
         float axisLength = inversesqrt(dot(axis, axis));
@@ -30,6 +37,15 @@ private fun getInterpolator(type: GradientType) = when (type) {
     """
     GradientType.Horizontal -> "float t = uv.x;"
     GradientType.Vertical -> "float t = uv.y;"
+    GradientType.Radial -> """
+        float2 direction = fragCoord - $UniformCenterRadius.xy;
+        float t = length(direction) * $UniformCenterRadius.z;
+    """
+    GradientType.Sweep -> """
+        float2 direction = fragCoord - $UniformCenter.xy;
+        float t = atan(direction.y, direction.x) * 0.15915494; // 1 / (2 * PI)
+        t = t - floor(t);
+    """
 }
 
 private fun mixSource(interpolator: String) = """
@@ -37,6 +53,7 @@ half4 main(float2 fragCoord) {
     float2 uv = fragCoord * $UniformResolution.xy;
 
     $interpolator
+    t = saturate(t);
 
     float3 l0 = mix($UniformLatent1, $UniformLatent2, t);
     float3 r0 = mix($UniformRemainders1, $UniformRemainders2, t);
@@ -64,27 +81,52 @@ internal actual class PaintGradientNode actual constructor(
     val pigmentsMixShader = RuntimeShader(
         uniformsSource(type) +
         PigmentsMixShaderSource +
-        mixSource(getInterpolator(type))
+        mixSource(interpolator(type))
     )
     val shaderBrush = ShaderBrush(pigmentsMixShader)
 
     actual override fun ContentDrawScope.draw() {
         updatePigmentsMixUniform(pigmentsMixShader)
 
-        if (type == GradientType.Directional) {
-            val start = startOffset.toShaderPosition(size)
-            pigmentsMixShader.setFloatUniform(UniformPosition1, start.x, start.y)
+        // Update these uniforms on every draw in case the size has changed
+        when (type) {
+            GradientType.Directional -> {
+                val start = startOffset.toShaderPosition(size)
+                pigmentsMixShader.setFloatUniform(UniformPosition1, start.x, start.y)
 
-            val end = endOffset.toShaderPosition(size)
-            pigmentsMixShader.setFloatUniform(UniformPosition2, end.x, end.y)
+                val end = endOffset.toShaderPosition(size)
+                pigmentsMixShader.setFloatUniform(UniformPosition2, end.x, end.y)
+            }
+
+            GradientType.Radial -> {
+                val gradientCenter =
+                    if (startOffset.isSpecified) startOffset.toShaderPosition(size) else center
+                pigmentsMixShader.setFloatUniform(UniformCenterRadius,
+                    gradientCenter.x,
+                    gradientCenter.y,
+                    1.0f / if (endOffset.x.isFinite()) endOffset.x else size.minDimension * 0.5f
+                )
+            }
+
+            GradientType.Sweep -> {
+                val gradientCenter =
+                    if (startOffset.isSpecified) startOffset.toShaderPosition(size) else center
+                pigmentsMixShader.setFloatUniform(UniformCenter, gradientCenter.x, gradientCenter.y)
+            }
+            else -> { }
         }
 
         drawRect(shaderBrush)
     }
 
-    actual fun updateOffsets(startOffset: Offset, endOffset: Offset) {
+    actual fun updateLinearOffsets(startOffset: Offset, endOffset: Offset) {
         this.startOffset = startOffset
         this.endOffset = endOffset
+    }
+
+    actual fun updateCircle(centerOffset: Offset, radius: Float) {
+        startOffset = centerOffset
+        endOffset = Offset(radius, Float.NaN)
     }
 
     actual fun updateColors(startColor: Color, endColor: Color) {
