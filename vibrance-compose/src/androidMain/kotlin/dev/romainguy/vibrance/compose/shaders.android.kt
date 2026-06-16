@@ -1,7 +1,6 @@
 package dev.romainguy.vibrance.compose
 
 import android.graphics.RuntimeShader
-import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 
