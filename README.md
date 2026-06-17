@@ -78,6 +78,8 @@ vibrance.colorToLatentColor(0.0f, 0.0f, 1.0f, latentBlue)
 
 ### Jetpack Compose (`vibrance-compose`)
 
+#### Gradients
+
 If you are using Jetpack Compose or Compose Multiplatform, you can easily create natural gradients
 using the provided modifiers:
 
@@ -90,7 +92,7 @@ import dev.romainguy.vibrance.compose.verticalPaintGradient
 // Vertical paint gradient from Blue to Yellow
 Column(Modifier
     .fillMaxSize()
-    .verticalPaintGradient(
+    .verticalPigmentsGradient(
         startColor = Color.Blue,
         endColor = Color.Yellow
     )
@@ -101,7 +103,7 @@ Column(Modifier
 // Horizontal paint gradient from Red to Green
 Row(Modifier
     .fillMaxWidth()
-    .horizontalPaintGradient(
+    .horizontalPigmentsGradient(
         startColor = Color.Red,
         endColor = Color.Green
     )
@@ -109,6 +111,18 @@ Row(Modifier
     // ...
 }
 ```
+
+Here are all the available gradient modifiers:
+- `horizontalPigmentsGradient`
+- `verticalPigmentsGradient`
+- `linearPigmentsGradient`
+- `radialPigmentsGradient`
+- `sweepPigmentsGradient`
+
+#### Colors
+
+The `vibrance-compose` module adds a series of extensions to the `Vibrance` class that accept and
+return `androidx.compose.ui.graphics.Color` types instead of raw `Float` values.
 
 ## License
 

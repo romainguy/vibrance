@@ -20,6 +20,6 @@ internal actual class PigmentsGradientNode actual constructor(
     actual fun updateColors(startColor: Color, endColor: Color) {
     }
 
-    actual fun updateCircle(centerOffset: Offset, radius: Float) {
+    actual fun updateRadialGeometry(centerOffset: Offset, radiusOrAngle: Float) {
     }
 }

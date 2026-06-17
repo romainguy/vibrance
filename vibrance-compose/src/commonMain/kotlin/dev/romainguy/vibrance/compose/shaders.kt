@@ -7,7 +7,7 @@ internal const val UniformRemainders2 = "uniform_r2"
 internal const val UniformPosition1 = "uniform_p1"
 internal const val UniformPosition2 = "uniform_p2"
 internal const val UniformCenterRadius = "uniform_centerRadius"
-internal const val UniformCenter = "uniform_center"
+internal const val UniformCenterAngle = "uniform_centerAngle"
 internal const val UniformResolution = "uniform_resolution"
 
 // language=agsl
