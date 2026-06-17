@@ -76,10 +76,10 @@ fun LinearGradients(modifier: Modifier) {
             GradientPatch(
                 "Vibrance",
                 Modifier.linearPigmentsGradient(
-                    Offset.Zero,
                     Color.White,
-                    Offset.Infinite,
-                    Color.Blue
+                    Color.Blue,
+                    Offset.Zero,
+                    Offset.Infinite
                 )
             )
             Spacer(Modifier.width(16.dp))
