@@ -119,6 +119,12 @@ Here are all the available gradient modifiers:
 - `radialPigmentsGradient`
 - `sweepPigmentsGradient`
 
+All gradient types except sweep gradients support the following tile modes:
+- `TileMode.Clamp`: default behavior, hold the start/end colors outside its bounds.
+- `TileMode.Repeated`: restarts the gradient outside its bounds.
+- `TileMode.Mirror`: repeats and mirrors the gradient outside its bounds.
+- `TileMode.Decal`: output fully transparent pixels outside the gradient bounds.
+
 #### Colors
 
 The `vibrance-compose` module adds a series of extensions to the `Vibrance` class that accept and
