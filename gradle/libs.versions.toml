@@ -21,6 +21,7 @@ activityCompose = "1.13.0"
 composeBom = "2026.05.01"
 
 [libraries]
+compose-animation = { module = "org.jetbrains.compose.animation:animation" , version.ref = "compose" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 runner = { group = "androidx.test", name = "runner", version.ref = "runner" }

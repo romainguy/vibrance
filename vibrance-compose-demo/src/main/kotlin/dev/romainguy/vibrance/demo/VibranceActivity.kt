@@ -42,11 +42,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
-import dev.romainguy.vibrance.compose.horizontalPaintGradient
-import dev.romainguy.vibrance.compose.linearPaintGradient
-import dev.romainguy.vibrance.compose.radialPaintGradient
-import dev.romainguy.vibrance.compose.sweepPaintGradient
-import dev.romainguy.vibrance.compose.verticalPaintGradient
+import dev.romainguy.vibrance.compose.horizontalPigmentsGradient
+import dev.romainguy.vibrance.compose.linearPigmentsGradient
+import dev.romainguy.vibrance.compose.radialPigmentsGradient
+import dev.romainguy.vibrance.compose.sweepPigmentsGradient
+import dev.romainguy.vibrance.compose.verticalPigmentsGradient
 import dev.romainguy.vibrance.demo.ui.theme.VibranceTheme
 
 class VibranceActivity : ComponentActivity() {
@@ -56,9 +56,10 @@ class VibranceActivity : ComponentActivity() {
         setContent {
             VibranceTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Box(Modifier
-                        .padding(innerPadding)
-                        .fillMaxSize()
+                    Box(
+                        Modifier
+                            .padding(innerPadding)
+                            .fillMaxSize()
                     ) {
                         val pagerState = rememberPagerState(pageCount = { 3 })
                         HorizontalPager(state = pagerState) { page ->
@@ -101,23 +102,25 @@ fun BoxScope.PageIndicator(pageCount: Int, currentPage: Int) {
 
 @Composable
 fun LinearPaintMix(modifier: Modifier) {
-    Column(modifier
-        .fillMaxSize()
-        .padding(horizontal = 16.dp)
+    Column(
+        modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
     ) {
         Text(
             "Linear Gradients",
             style = MaterialTheme.typography.titleLarge
         )
         // Yellow to Red
-        Row(Modifier
-            .fillMaxWidth()
-            .weight(1.0f)
-            .padding(0.dp, 16.dp, 0.dp, 8.dp)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .weight(1.0f)
+                .padding(0.dp, 16.dp, 0.dp, 8.dp)
         ) {
             GradientPatch(
                 "Vibrance",
-                Modifier.verticalPaintGradient(Color.Yellow, Color.Red)
+                Modifier.verticalPigmentsGradient(Color.Yellow, Color.Red)
             )
             Spacer(Modifier.width(16.dp))
             GradientPatch(
@@ -126,14 +129,15 @@ fun LinearPaintMix(modifier: Modifier) {
             )
         }
         // Yellow to Blue
-        Column(Modifier
-            .fillMaxWidth()
-            .weight(1.0f)
-            .padding(0.dp, 8.dp, 0.dp, 8.dp)
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .weight(1.0f)
+                .padding(0.dp, 8.dp, 0.dp, 8.dp)
         ) {
             GradientPatch(
                 "Vibrance",
-                Modifier.horizontalPaintGradient(Color.Yellow, Color.Blue)
+                Modifier.horizontalPigmentsGradient(Color.Yellow, Color.Blue)
             )
             Spacer(Modifier.height(16.dp))
             GradientPatch(
@@ -142,14 +146,20 @@ fun LinearPaintMix(modifier: Modifier) {
             )
         }
         // White to Blue
-        Row(Modifier
-            .fillMaxWidth()
-            .weight(1.0f)
-            .padding(0.dp, 8.dp, 0.dp, 16.dp)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .weight(1.0f)
+                .padding(0.dp, 8.dp, 0.dp, 16.dp)
         ) {
             GradientPatch(
                 "Vibrance",
-                Modifier.linearPaintGradient(Offset.Zero, Color.White, Offset.Infinite, Color.Blue)
+                Modifier.linearPigmentsGradient(
+                    Offset.Zero,
+                    Color.White,
+                    Offset.Infinite,
+                    Color.Blue
+                )
             )
             Spacer(Modifier.width(16.dp))
             GradientPatch(
@@ -168,9 +178,10 @@ fun LinearPaintMix(modifier: Modifier) {
 
 @Composable
 fun RadialPaintMix(modifier: Modifier) {
-    Column(modifier
-        .fillMaxSize()
-        .padding(horizontal = 16.dp)
+    Column(
+        modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
     ) {
         Text(
             "Radial Gradients",
@@ -187,7 +198,11 @@ fun RadialPaintMix(modifier: Modifier) {
         ) {
             GradientPatch(
                 "Vibrance",
-                Modifier.radialPaintGradient(Color.Yellow, Color.Green, radius = patch0Size * 0.5f)
+                Modifier.radialPigmentsGradient(
+                    Color.Yellow,
+                    Color.Green,
+                    radius = patch0Size * 0.5f
+                )
             )
             Spacer(Modifier.width(16.dp))
             GradientPatch(
@@ -211,7 +226,11 @@ fun RadialPaintMix(modifier: Modifier) {
         ) {
             GradientPatch(
                 "Vibrance",
-                Modifier.radialPaintGradient(Color.Magenta, Color.Red, radius = patch1Size * 0.5f)
+                Modifier.radialPigmentsGradient(
+                    Color.Magenta,
+                    Color.Red,
+                    radius = patch1Size * 0.5f
+                )
             )
             Spacer(Modifier.width(16.dp))
             GradientPatch(
@@ -235,7 +254,7 @@ fun RadialPaintMix(modifier: Modifier) {
         ) {
             GradientPatch(
                 "Vibrance",
-                Modifier.radialPaintGradient(Color.White, Color.Blue, radius = patch1Size * 0.5f)
+                Modifier.radialPigmentsGradient(Color.White, Color.Blue, radius = patch1Size * 0.5f)
             )
             Spacer(Modifier.width(16.dp))
             GradientPatch(
@@ -253,9 +272,10 @@ fun RadialPaintMix(modifier: Modifier) {
 
 @Composable
 fun SweepPaintMix(modifier: Modifier) {
-    Column(modifier
-        .fillMaxSize()
-        .padding(horizontal = 16.dp)
+    Column(
+        modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
     ) {
         Text(
             "Sweep Gradients",
@@ -270,7 +290,7 @@ fun SweepPaintMix(modifier: Modifier) {
         ) {
             GradientPatch(
                 "Vibrance",
-                Modifier.sweepPaintGradient(Color.Yellow, Color.Blue)
+                Modifier.sweepPigmentsGradient(Color.Yellow, Color.Blue)
             )
             Spacer(Modifier.width(16.dp))
             GradientPatch(
@@ -287,7 +307,7 @@ fun SweepPaintMix(modifier: Modifier) {
         ) {
             GradientPatch(
                 "Vibrance",
-                Modifier.sweepPaintGradient(Color.Magenta, Color.Yellow)
+                Modifier.sweepPigmentsGradient(Color.Magenta, Color.Yellow)
             )
             Spacer(Modifier.width(16.dp))
             GradientPatch(
@@ -304,7 +324,7 @@ fun SweepPaintMix(modifier: Modifier) {
         ) {
             GradientPatch(
                 "Vibrance",
-                Modifier.sweepPaintGradient(Color.White, Color.Blue)
+                Modifier.sweepPigmentsGradient(Color.White, Color.Blue)
             )
             Spacer(Modifier.width(16.dp))
             GradientPatch(
@@ -320,12 +340,15 @@ private fun RowScope.GradientPatch(
     label: String,
     @SuppressLint("ModifierParameter") gradientModifier: Modifier
 ) {
-    Column(Modifier
-        .fillMaxHeight()
-        .weight(1.0f)) {
-        Box(Modifier
-            .fillMaxWidth()
-            .weight(1.0f) then gradientModifier
+    Column(
+        Modifier
+            .fillMaxHeight()
+            .weight(1.0f)
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .weight(1.0f) then gradientModifier
         )
         Text(label, style = MaterialTheme.typography.labelLarge)
     }
@@ -336,12 +359,15 @@ private fun ColumnScope.GradientPatch(
     label: String,
     @SuppressLint("ModifierParameter") gradientModifier: Modifier
 ) {
-    Column(Modifier
-        .fillMaxWidth()
-        .weight(1.0f)) {
-        Box(Modifier
+    Column(
+        Modifier
             .fillMaxWidth()
-            .weight(1.0f) then gradientModifier
+            .weight(1.0f)
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .weight(1.0f) then gradientModifier
         )
         Text(label, style = MaterialTheme.typography.labelLarge)
     }

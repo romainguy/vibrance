@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.node.DrawModifierNode
 
-internal actual class PaintGradientNode actual constructor(
+internal actual class PigmentsGradientNode actual constructor(
     type: GradientType
 ) : DrawModifierNode, Modifier.Node() {
     actual override fun ContentDrawScope.draw() {

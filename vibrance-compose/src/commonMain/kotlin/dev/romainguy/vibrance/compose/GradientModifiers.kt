@@ -13,8 +13,8 @@ import androidx.compose.ui.node.ModifierNodeElement
  * The gradient goes from [startColor] at the top, to [endColor] at the bottom.
  */
 @RequiresApi(33)
-fun Modifier.verticalPaintGradient(startColor: Color, endColor: Color) =
-    this then LinearPaintGradientElement(
+fun Modifier.verticalPigmentsGradient(startColor: Color, endColor: Color) =
+    this then LinearPigmentsGradientElement(
         GradientType.Vertical,
         Offset.Unspecified,
         startColor,
@@ -27,8 +27,8 @@ fun Modifier.verticalPaintGradient(startColor: Color, endColor: Color) =
  * The gradient goes from [startColor] on the left, to [endColor] on the right.
  */
 @RequiresApi(33)
-fun Modifier.horizontalPaintGradient(startColor: Color, endColor: Color) =
-    this then LinearPaintGradientElement( // TODO: RTL?
+fun Modifier.horizontalPigmentsGradient(startColor: Color, endColor: Color) =
+    this then LinearPigmentsGradientElement( // TODO: RTL?
         GradientType.Horizontal,
         Offset.Unspecified,
         startColor,
@@ -43,13 +43,13 @@ fun Modifier.horizontalPaintGradient(startColor: Color, endColor: Color) =
  * respectively.
  */
 @RequiresApi(33)
-fun Modifier.linearPaintGradient(
+fun Modifier.linearPigmentsGradient(
     startOffset: Offset,
     startColor: Color,
     endOffset: Offset,
     endColor: Color
 ) =
-    this then LinearPaintGradientElement(
+    this then LinearPigmentsGradientElement(
         GradientType.Directional,
         startOffset,
         startColor,
@@ -66,13 +66,13 @@ fun Modifier.linearPaintGradient(
  * [Float.POSITIVE_INFINITY] to use a radius that fits within the drawing area.
  */
 @RequiresApi(33)
-fun Modifier.radialPaintGradient(
+fun Modifier.radialPigmentsGradient(
     startColor: Color,
     endColor: Color,
     centerOffset: Offset = Offset.Unspecified,
     radius: Float = Float.POSITIVE_INFINITY
 ) =
-    this then RadialPaintGradientElement(
+    this then RadialPigmentsGradientElement(
         GradientType.Radial,
         startColor,
         endColor,
@@ -88,12 +88,12 @@ fun Modifier.radialPaintGradient(
  * respectively.
  */
 @RequiresApi(33)
-fun Modifier.sweepPaintGradient(
+fun Modifier.sweepPigmentsGradient(
     startColor: Color,
     endColor: Color,
     centerOffset: Offset = Offset.Unspecified
 ) =
-    this then SweepPaintGradientElement(
+    this then SweepPigmentsGradientElement(
         GradientType.Sweep,
         startColor,
         endColor,
@@ -108,15 +108,15 @@ internal enum class GradientType {
     Sweep
 }
 
-private data class LinearPaintGradientElement(
+private data class LinearPigmentsGradientElement(
     val type: GradientType,
     val startOffset: Offset,
     val startColor: Color,
     val endOffset: Offset,
     val endColor: Color
-) : ModifierNodeElement<PaintGradientNode>() {
-    override fun create(): PaintGradientNode {
-        val node = PaintGradientNode(type)
+) : ModifierNodeElement<PigmentsGradientNode>() {
+    override fun create(): PigmentsGradientNode {
+        val node = PigmentsGradientNode(type)
 
         node.updateColors(startColor, endColor)
         node.updateLinearOffsets(startOffset, endOffset)
@@ -124,21 +124,21 @@ private data class LinearPaintGradientElement(
         return node
     }
 
-    override fun update(node: PaintGradientNode) {
+    override fun update(node: PigmentsGradientNode) {
         node.updateColors(startColor, endColor)
         node.updateLinearOffsets(startOffset, endOffset)
     }
 }
 
-private data class RadialPaintGradientElement(
+private data class RadialPigmentsGradientElement(
     val type: GradientType,
     val startColor: Color,
     val endColor: Color,
     val centerOffset: Offset,
     val radius: Float
-) : ModifierNodeElement<PaintGradientNode>() {
-    override fun create(): PaintGradientNode {
-        val node = PaintGradientNode(type)
+) : ModifierNodeElement<PigmentsGradientNode>() {
+    override fun create(): PigmentsGradientNode {
+        val node = PigmentsGradientNode(type)
 
         node.updateColors(startColor, endColor)
         node.updateCircle(centerOffset, radius)
@@ -146,20 +146,20 @@ private data class RadialPaintGradientElement(
         return node
     }
 
-    override fun update(node: PaintGradientNode) {
+    override fun update(node: PigmentsGradientNode) {
         node.updateColors(startColor, endColor)
         node.updateCircle(centerOffset, radius)
     }
 }
 
-private data class SweepPaintGradientElement(
+private data class SweepPigmentsGradientElement(
     val type: GradientType,
     val startColor: Color,
     val endColor: Color,
     val centerOffset: Offset
-) : ModifierNodeElement<PaintGradientNode>() {
-    override fun create(): PaintGradientNode {
-        val node = PaintGradientNode(type)
+) : ModifierNodeElement<PigmentsGradientNode>() {
+    override fun create(): PigmentsGradientNode {
+        val node = PigmentsGradientNode(type)
 
         node.updateColors(startColor, endColor)
         node.updateCircle(centerOffset, Float.NaN)
@@ -167,14 +167,14 @@ private data class SweepPaintGradientElement(
         return node
     }
 
-    override fun update(node: PaintGradientNode) {
+    override fun update(node: PigmentsGradientNode) {
         node.updateColors(startColor, endColor)
         node.updateCircle(centerOffset, Float.NaN)
     }
 }
 
 @Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
-internal expect class PaintGradientNode(
+internal expect class PigmentsGradientNode(
     type: GradientType
 ) : DrawModifierNode, Modifier.Node {
     override fun ContentDrawScope.draw()
