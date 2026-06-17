@@ -61,6 +61,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":vibrance"))
+            implementation(libs.compose.animation)
             implementation(libs.compose.ui)
         }
         commonTest.dependencies {

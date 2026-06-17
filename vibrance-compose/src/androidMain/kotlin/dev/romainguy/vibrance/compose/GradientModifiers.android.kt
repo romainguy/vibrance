@@ -67,7 +67,7 @@ half4 main(float2 fragCoord) {
 
 @RequiresApi(33)
 @Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
-internal actual class PaintGradientNode actual constructor(
+internal actual class PigmentsGradientNode actual constructor(
     type: GradientType
 ) : DrawModifierNode, Modifier.Node() {
     val vibrance = Vibrance()

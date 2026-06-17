@@ -207,6 +207,8 @@ class Vibrance {
      *     values between 0 and 1.
      * @param src The destination latent color to mix, must be an array of at least 6 floats, with
      *     values between 0 and 1.
+     * @param amount The mix (or interpolation) amount between the source and destination
+     *     colors, between 0 and 1.
      * @param color An array of at least 3 floats that will store the interpolated sRGB color.
      * @return The [color] array if specified, otherwise a newly allocated array of 3 floats.
      */
@@ -318,8 +320,7 @@ class Vibrance {
      * - Titanium White
      *
      * Each concentration must be a value between 0 and 1, and the sum of the concentrations
-     * *must* be 1. This function does not validate the inputs and the resulting color is
-     * undefined if these conditions are not met.
+     * *must* be 1.
      *
      * The computed sRGB color uses the range 0 to 1 for each of the R, G, and B components.
      *
