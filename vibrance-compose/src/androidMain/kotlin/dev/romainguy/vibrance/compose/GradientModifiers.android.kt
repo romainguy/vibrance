@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.node.DrawModifierNode
 import dev.romainguy.vibrance.Vibrance
+import kotlin.math.PI
 
 private fun uniformsSource(type: GradientType) = when (type) {
     GradientType.Directional -> """
@@ -24,7 +25,7 @@ private fun uniformsSource(type: GradientType) = when (type) {
         uniform float3 $UniformCenterRadius;
     """.trimIndent()
     GradientType.Sweep -> """
-        uniform float2 $UniformCenter;
+        uniform float3 $UniformCenterAngle;
     """.trimIndent()
 }
 
@@ -42,8 +43,9 @@ private fun interpolator(type: GradientType) = when (type) {
         float t = length(direction) * $UniformCenterRadius.z;
     """
     GradientType.Sweep -> """
-        float2 direction = fragCoord - $UniformCenter.xy;
-        float t = atan(direction.y, direction.x) * 0.15915494; // 1 / (2 * PI)
+        float2 direction = fragCoord - $UniformCenterAngle.xy;
+        // 1 / (2 * PI)
+        float t = (atan(direction.y, direction.x) + $UniformCenterAngle.z) * 0.15915494;
         t = t - floor(t);
     """
 }
@@ -111,7 +113,12 @@ internal actual class PigmentsGradientNode actual constructor(
             GradientType.Sweep -> {
                 val gradientCenter =
                     if (startOffset.isSpecified) startOffset.toShaderPosition(size) else center
-                pigmentsMixShader.setFloatUniform(UniformCenter, gradientCenter.x, gradientCenter.y)
+                pigmentsMixShader.setFloatUniform(
+                    UniformCenterAngle,
+                    gradientCenter.x,
+                    gradientCenter.y,
+                    endOffset.x * (PI / 180.0).toFloat()
+                )
             }
             else -> { }
         }
@@ -124,9 +131,9 @@ internal actual class PigmentsGradientNode actual constructor(
         this.endOffset = endOffset
     }
 
-    actual fun updateCircle(centerOffset: Offset, radius: Float) {
+    actual fun updateRadialGeometry(centerOffset: Offset, radiusOrAngle: Float) {
         startOffset = centerOffset
-        endOffset = Offset(radius, Float.NaN)
+        endOffset = Offset(radiusOrAngle, Float.NaN)
     }
 
     actual fun updateColors(startColor: Color, endColor: Color) {
