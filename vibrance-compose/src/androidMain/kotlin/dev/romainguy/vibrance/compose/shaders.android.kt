@@ -8,11 +8,13 @@ internal fun uniformsSource(type: GradientType) = when (type) {
     GradientType.Directional -> """
         uniform float2 $UniformPosition1;
         uniform float2 $UniformPosition2;
+        uniform int $UniformTileMode;
     """.trimIndent()
     GradientType.Horizontal -> ""
     GradientType.Vertical -> ""
     GradientType.Radial -> """
         uniform float3 $UniformCenterRadius;
+        uniform int $UniformTileMode;
     """.trimIndent()
     GradientType.Sweep -> """
         uniform float3 $UniformCenterAngle;
@@ -40,12 +42,32 @@ internal fun interpolator(type: GradientType) = when (type) {
     """
 }
 
-internal fun mixSource(interpolator: String) = """
+internal fun tileMode(type: GradientType) = when (type) {
+    GradientType.Directional, GradientType.Radial -> """
+        switch ($UniformTileMode) {
+            case TileMode_Clamp:
+                t = saturate(t);
+                break;
+            case TileMode_Repeated:
+                t = t - floor(t);
+                break;
+            case TileMode_Mirror:
+                t = 1.0 - abs(mod(t, 2.0) - 1.0);
+                break;
+            case TileMode_Decal:
+                if (t < 0.0 || t > 1.0) return half4(0.0);
+                break;
+        }
+    """
+    else -> "t = saturate(t);"
+}
+
+internal fun mixSource(interpolator: String, tileMode: String) = """
 half4 main(float2 fragCoord) {
     float2 uv = fragCoord * $UniformResolution.xy;
 
     $interpolator
-    t = saturate(t);
+    $tileMode
 
     float3 l0 = mix($UniformLatent1, $UniformLatent2, t);
     float3 r0 = mix($UniformRemainders1, $UniformRemainders2, t);

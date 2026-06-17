@@ -8,6 +8,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.node.DrawModifierNode
@@ -24,13 +25,14 @@ internal actual class PigmentsGradientNode actual constructor(
     val endLatentColor = FloatArray(6)
     var startOffset = Offset.Zero
     var endOffset = Offset.Zero
+    var tileMode = TileMode.Clamp
 
     val type = type
 
     val pigmentsMixShader = RuntimeShader(
         uniformsSource(type) +
         PigmentsMixShaderSource +
-        mixSource(interpolator(type))
+        mixSource(interpolator(type), tileMode(type))
     )
     val shaderBrush = ShaderBrush(pigmentsMixShader)
 
@@ -121,7 +123,22 @@ internal actual class PigmentsGradientNode actual constructor(
             endLatentColor[5]
         )
     }
+
+    actual fun updateTileMode(tileMode: TileMode) {
+        this.tileMode = tileMode
+        if (type == GradientType.Directional || type == GradientType.Radial) {
+            pigmentsMixShader.setIntUniform(UniformTileMode, tileMode.toInt())
+        }
+    }
 }
 
 internal fun Offset.toShaderPosition(size: Size) =
     Offset(if (x.isFinite()) x else size.width, if (y.isFinite()) y else size.height)
+
+internal fun TileMode.toInt() = when (this) {
+    TileMode.Clamp -> 0
+    TileMode.Repeated -> 1
+    TileMode.Mirror -> 2
+    TileMode.Decal -> 3
+    else -> -1
+}
