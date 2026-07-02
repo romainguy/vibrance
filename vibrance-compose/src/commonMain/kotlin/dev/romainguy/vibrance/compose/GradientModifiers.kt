@@ -18,11 +18,11 @@ import androidx.compose.ui.node.ModifierNodeElement
 @RequiresApi(33)
 fun Modifier.verticalPigmentsGradient(startColor: Color, endColor: Color) =
     this then LinearPigmentsGradientElement(
-        GradientType.Vertical,
+        GradientType.Directional,
         startColor,
         endColor,
-        Offset.Unspecified,
-        Offset.Unspecified,
+        Offset.Zero,
+        Offset(0.0f, Float.POSITIVE_INFINITY),
         TileMode.Clamp
     )
 
@@ -65,12 +65,12 @@ fun Modifier.verticalPigmentsGradient(
  */
 @RequiresApi(33)
 fun Modifier.horizontalPigmentsGradient(startColor: Color, endColor: Color) =
-    this then LinearPigmentsGradientElement( // TODO: RTL?
-        GradientType.Horizontal,
+    this then LinearPigmentsGradientElement(
+        GradientType.Directional,
         startColor,
         endColor,
-        Offset.Unspecified,
-        Offset.Unspecified,
+        Offset.Zero,
+        Offset(Float.POSITIVE_INFINITY, 0.0f),
         TileMode.Clamp
     )
 
@@ -198,8 +198,6 @@ fun Modifier.sweepPigmentsGradient(
 
 internal enum class GradientType {
     Directional,
-    Horizontal,
-    Vertical,
     Radial,
     Sweep
 }

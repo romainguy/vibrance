@@ -8,7 +8,6 @@ internal const val UniformPosition1 = "uniform_p1"
 internal const val UniformPosition2 = "uniform_p2"
 internal const val UniformCenterRadius = "uniform_centerRadius"
 internal const val UniformCenterAngle = "uniform_centerAngle"
-internal const val UniformResolution = "uniform_resolution"
 internal const val UniformTileMode = "uniform_tileMode"
 
 // language=agsl
@@ -17,14 +16,12 @@ uniform float3 $UniformLatent1;
 uniform float3 $UniformRemainders1;
 uniform float3 $UniformLatent2;
 uniform float3 $UniformRemainders2;
-uniform float2 $UniformResolution;
 
 const int TileMode_Clamp  = 0;
 const int TileMode_Repeated = 1;
 const int TileMode_Mirror = 2;
 const int TileMode_Decal = 3;
 
-// n must be normalized in [0..1] (e.g. texture coordinates)
 float triangleNoise(float2 n) {
     // triangle noise, in [-1.0..1.0[ range
     n  = fract(n * float2(5.3987, 5.4421));

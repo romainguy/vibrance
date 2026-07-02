@@ -1,0 +1,81 @@
+package dev.romainguy.vibrance.demo
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Matrix
+import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
+import dev.romainguy.vibrance.compose.horizontalPigmentsGradient
+import dev.romainguy.vibrance.compose.verticalPigmentsGradient
+
+private const val Heart = "M0 200 v-200 h200 a100,100 90 0,1 0,200 a100,100 90 0,1 -200,0 z"
+
+@Composable
+fun BrushGradients(modifier: Modifier) {
+    Column(
+        modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+    ) {
+        Text(
+            "Brushes",
+            style = MaterialTheme.typography.titleLarge
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        Column(Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .padding(16.dp)
+        ) {
+            Text(
+                "Mixing colors as pigments generates natural and vibrant looking gradients.",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    brush = Brush.horizontalPigmentsGradient(Color.Yellow, Color.Blue)
+                )
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            Text(
+                "Mixing colors as pigments generates natural and vibrant looking gradients.",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    brush = Brush.verticalPigmentsGradient(Color.Cyan, Color.Magenta)
+                )
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            val density = LocalDensity.current
+            val path = remember {
+                val shape = PathParser().parsePathString(Heart).toPath()
+                with(density) {
+                    val bounds = shape.getBounds()
+                    val t = Matrix().apply {
+                        scale(200.dp.toPx() / bounds.width, 200.dp.toPx() / bounds.height)
+                    }
+                    shape.transform(t)
+                    shape
+                }
+            }
+            Canvas(Modifier.size(200.dp, 200.dp)) {
+                drawPath(path, Brush.verticalPigmentsGradient(Color.Yellow, Color.Red))
+            }
+        }
+    }
+}
