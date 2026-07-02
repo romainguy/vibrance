@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Matrix
@@ -20,6 +21,7 @@ import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import dev.romainguy.vibrance.compose.horizontalPigmentsGradient
+import dev.romainguy.vibrance.compose.linearPigmentsGradient
 import dev.romainguy.vibrance.compose.verticalPigmentsGradient
 
 private const val Heart = "M0 200 v-200 h200 a100,100 90 0,1 0,200 a100,100 90 0,1 -200,0 z"
@@ -62,19 +64,28 @@ fun BrushGradients(modifier: Modifier) {
             Spacer(Modifier.height(16.dp))
 
             val density = LocalDensity.current
+            val shapeSize = 120.dp
             val path = remember {
                 val shape = PathParser().parsePathString(Heart).toPath()
                 with(density) {
                     val bounds = shape.getBounds()
-                    val t = Matrix().apply {
-                        scale(200.dp.toPx() / bounds.width, 200.dp.toPx() / bounds.height)
+                    val transform = Matrix().apply {
+                        scale(shapeSize.toPx() / bounds.width, shapeSize.toPx() / bounds.height)
                     }
-                    shape.transform(t)
-                    shape
+                    shape.transform(transform)
                 }
+                shape
             }
-            Canvas(Modifier.size(200.dp, 200.dp)) {
-                drawPath(path, Brush.verticalPigmentsGradient(Color.Yellow, Color.Red))
+            Canvas(Modifier.size(shapeSize)) {
+                drawPath(
+                    path,
+                    Brush.linearPigmentsGradient(
+                        Color.Yellow,
+                        Color.Red,
+                        Offset(Float.POSITIVE_INFINITY, 0.0f),
+                        Offset(0.0f, Float.POSITIVE_INFINITY)
+                    )
+                )
             }
         }
     }
