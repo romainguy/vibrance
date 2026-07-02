@@ -38,12 +38,13 @@ class VibranceActivity : ComponentActivity() {
                             .padding(innerPadding)
                             .fillMaxSize()
                     ) {
-                        val pagerState = rememberPagerState(pageCount = { 3 })
+                        val pagerState = rememberPagerState(pageCount = { 4 })
                         HorizontalPager(state = pagerState) { page ->
                             when (page) {
                                 0 -> LinearGradients(Modifier.padding(bottom = 8.dp))
                                 1 -> RadialGradients(Modifier.padding(bottom = 8.dp))
                                 2 -> SweepGradients(Modifier.padding(bottom = 8.dp))
+                                3 -> BrushGradients(Modifier.padding(bottom = 8.dp))
                             }
                         }
                         PageIndicator(pagerState.pageCount, pagerState.currentPage)

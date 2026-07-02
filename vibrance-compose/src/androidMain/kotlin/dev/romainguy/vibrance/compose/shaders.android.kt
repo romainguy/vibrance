@@ -2,7 +2,10 @@ package dev.romainguy.vibrance.compose
 
 import android.graphics.RuntimeShader
 import androidx.annotation.RequiresApi
-import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.colorspace.ColorSpaces
+import dev.romainguy.vibrance.Vibrance
 
 internal fun uniformsSource(type: GradientType) = when (type) {
     GradientType.Directional -> """
@@ -10,8 +13,6 @@ internal fun uniformsSource(type: GradientType) = when (type) {
         uniform float2 $UniformPosition2;
         uniform int $UniformTileMode;
     """.trimIndent()
-    GradientType.Horizontal -> ""
-    GradientType.Vertical -> ""
     GradientType.Radial -> """
         uniform float3 $UniformCenterRadius;
         uniform int $UniformTileMode;
@@ -28,8 +29,6 @@ internal fun interpolator(type: GradientType) = when (type) {
         float2 direction = fragCoord - $UniformPosition1;
         float t = dot(direction, axis * axisLength) * axisLength;
     """
-    GradientType.Horizontal -> "float t = uv.x;"
-    GradientType.Vertical -> "float t = uv.y;"
     GradientType.Radial -> """
         float2 direction = fragCoord - $UniformCenterRadius.xy;
         float t = length(direction) * $UniformCenterRadius.z;
@@ -64,8 +63,6 @@ internal fun tileMode(type: GradientType) = when (type) {
 
 internal fun mixSource(interpolator: String, tileMode: String) = """
 half4 main(float2 fragCoord) {
-    float2 uv = fragCoord * $UniformResolution.xy;
-
     $interpolator
     $tileMode
 
@@ -75,11 +72,58 @@ half4 main(float2 fragCoord) {
     half3 color = half3(mixPigments(vec4(l0, 1.0 - (l0.x + l0.y + l0.z))) + r0);
     color = fromLinearSrgb(color);
 
-    return Dither_TriangleNoise(uv, color).rgb1;
+    return Dither_TriangleNoise(fragCoord * (1.0 / 1080.0), color).rgb1;
 }
 """.trimIndent()
 
+internal fun TileMode.toInt() = when (this) {
+    TileMode.Clamp -> 0
+    TileMode.Repeated -> 1
+    TileMode.Mirror -> 2
+    TileMode.Decal -> 3
+    else -> -1
+}
+
 @RequiresApi(33)
-internal fun ContentDrawScope.updatePigmentsMixUniform(shader: RuntimeShader) {
-    shader.setFloatUniform(UniformResolution, 1.0f / size.width, 1.0f / size.height)
+internal fun RuntimeShader.setPigmentsUniforms(
+    vibrance: Vibrance,
+    startColor: Color,
+    endColor: Color,
+    startLatentColor: FloatArray,
+    endLatentColor: FloatArray
+) {
+    val startSrgb = startColor.convert(ColorSpaces.Srgb)
+    vibrance.colorToLatentColor(
+        startSrgb.red,
+        startSrgb.green,
+        startSrgb.blue,
+        startLatentColor
+    )
+    setFloatUniform(
+        UniformLatent1,
+        startLatentColor[0],
+        startLatentColor[1],
+        startLatentColor[2]
+    )
+    setFloatUniform(
+        UniformRemainders1,
+        startLatentColor[3],
+        startLatentColor[4],
+        startLatentColor[5]
+    )
+
+    val endSrgb = endColor.convert(ColorSpaces.Srgb)
+    vibrance.colorToLatentColor(endSrgb.red, endSrgb.green, endSrgb.blue, endLatentColor)
+    setFloatUniform(
+        UniformLatent2,
+        endLatentColor[0],
+        endLatentColor[1],
+        endLatentColor[2]
+    )
+    setFloatUniform(
+        UniformRemainders2,
+        endLatentColor[3],
+        endLatentColor[4],
+        endLatentColor[5]
+    )
 }
