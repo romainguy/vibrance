@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.util.fastIsFinite
 import dev.romainguy.vibrance.Vibrance
 import kotlin.math.PI
 
@@ -51,7 +52,7 @@ internal actual class PigmentsGradientNode actual constructor(
                 shader.setFloatUniform(UniformCenterRadius,
                     gradientCenter.x,
                     gradientCenter.y,
-                    1.0f / if (endOffset.x.isFinite()) endOffset.x else size.minDimension * 0.5f
+                    1.0f / if (endOffset.x.fastIsFinite()) endOffset.x else size.minDimension * 0.5f
                 )
             }
 
