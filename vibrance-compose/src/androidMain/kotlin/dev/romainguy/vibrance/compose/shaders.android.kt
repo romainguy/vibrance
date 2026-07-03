@@ -1,7 +1,10 @@
+@file:Suppress("NOTHING_TO_INLINE")
+
 package dev.romainguy.vibrance.compose
 
 import android.graphics.RuntimeShader
 import androidx.annotation.RequiresApi
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
@@ -82,6 +85,16 @@ internal fun TileMode.toInt() = when (this) {
     TileMode.Mirror -> 2
     TileMode.Decal -> 3
     else -> -1
+}
+
+@RequiresApi(33)
+internal fun assembleGradientShader(type: GradientType) = RuntimeShader(
+    uniformsSource(type) + PigmentsMixShaderSource + mixSource(interpolator(type), tileMode(type))
+)
+
+@RequiresApi(33)
+internal inline fun RuntimeShader.setOffsetUniform(uniform: String, offset: Offset) {
+    setFloatUniform(uniform, offset.x, offset.y)
 }
 
 @RequiresApi(33)
