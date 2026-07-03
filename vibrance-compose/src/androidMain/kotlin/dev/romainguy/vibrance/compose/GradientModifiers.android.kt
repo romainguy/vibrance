@@ -1,6 +1,5 @@
 package dev.romainguy.vibrance.compose
 
-import android.graphics.RuntimeShader
 import androidx.annotation.RequiresApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -28,22 +27,15 @@ internal actual class PigmentsGradientNode actual constructor(
 
     val type = type
 
-    val shader = RuntimeShader(
-        uniformsSource(type) +
-        PigmentsMixShaderSource +
-        mixSource(interpolator(type), tileMode(type))
-    )
+    val shader = assembleGradientShader(type)
     val shaderBrush = ShaderBrush(shader)
 
     actual override fun ContentDrawScope.draw() {
         // Update these uniforms on every draw in case the size has changed
         when (type) {
             GradientType.Directional -> {
-                val start = startOffset.toShaderPosition(size)
-                shader.setFloatUniform(UniformPosition1, start.x, start.y)
-
-                val end = endOffset.toShaderPosition(size)
-                shader.setFloatUniform(UniformPosition2, end.x, end.y)
+                shader.setOffsetUniform(UniformPosition1, startOffset.toShaderPosition(size))
+                shader.setOffsetUniform(UniformPosition2, endOffset.toShaderPosition(size))
             }
 
             GradientType.Radial -> {

@@ -2,7 +2,6 @@
 
 package dev.romainguy.vibrance.compose
 
-import android.graphics.RuntimeShader
 import androidx.annotation.RequiresApi
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -18,14 +17,10 @@ actual fun LinearPigmentsGradientShader(
     endOffset: Offset,
     tileMode: TileMode
 ): Shader {
-    val shader = RuntimeShader(
-        uniformsSource(GradientType.Directional) +
-        PigmentsMixShaderSource +
-        mixSource(interpolator(GradientType.Directional), tileMode(GradientType.Directional))
-    )
+    val shader = assembleGradientShader(GradientType.Directional)
 
-    shader.setFloatUniform(UniformPosition1, startOffset.x, startOffset.y)
-    shader.setFloatUniform(UniformPosition2, endOffset.x, endOffset.y)
+    shader.setOffsetUniform(UniformPosition1, startOffset)
+    shader.setOffsetUniform(UniformPosition2, endOffset)
     shader.setIntUniform(UniformTileMode, tileMode.toInt())
     shader.setPigmentsUniforms(
         Vibrance(),
@@ -46,11 +41,7 @@ actual fun RadialPigmentsGradientShader(
     radius: Float,
     tileMode: TileMode
 ): Shader {
-    val shader = RuntimeShader(
-        uniformsSource(GradientType.Radial) +
-        PigmentsMixShaderSource +
-        mixSource(interpolator(GradientType.Radial), tileMode(GradientType.Radial))
-    )
+    val shader = assembleGradientShader(GradientType.Radial)
 
     shader.setFloatUniform(UniformCenterRadius,
         centerOffset.x,
