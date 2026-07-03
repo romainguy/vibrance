@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shader
 import androidx.compose.ui.graphics.TileMode
 import dev.romainguy.vibrance.Vibrance
+import kotlin.math.PI
 
 @RequiresApi(33)
 actual fun LinearPigmentsGradientShader(
@@ -49,6 +50,32 @@ actual fun RadialPigmentsGradientShader(
         1.0f / radius
     )
     shader.setIntUniform(UniformTileMode, tileMode.toInt())
+    shader.setPigmentsUniforms(
+        Vibrance(),
+        startColor,
+        endColor,
+        FloatArray(6),
+        FloatArray(6)
+    )
+
+    return shader
+}
+
+@RequiresApi(33)
+actual fun SweepPigmentsGradientShader(
+    startColor: Color,
+    endColor: Color,
+    centerOffset: Offset,
+    angle: Float
+): Shader {
+    val shader = assembleGradientShader(GradientType.Sweep)
+
+    shader.setFloatUniform(
+        UniformCenterAngle,
+        centerOffset.x,
+        centerOffset.y,
+        angle * (PI / 180.0).toFloat()
+    )
     shader.setPigmentsUniforms(
         Vibrance(),
         startColor,
