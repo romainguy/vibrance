@@ -3,7 +3,6 @@
 package dev.romainguy.vibrance.compose
 
 import androidx.annotation.RequiresApi
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.center
