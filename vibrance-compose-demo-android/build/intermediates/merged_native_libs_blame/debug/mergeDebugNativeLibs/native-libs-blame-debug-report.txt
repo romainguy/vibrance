@@ -1,0 +1,4 @@
+lib/arm64-v8a/libandroidx.graphics.path.so->androidx.graphics:graphics-path:1.0.1
+lib/armeabi-v7a/libandroidx.graphics.path.so->androidx.graphics:graphics-path:1.0.1
+lib/x86/libandroidx.graphics.path.so->androidx.graphics:graphics-path:1.0.1
+lib/x86_64/libandroidx.graphics.path.so->androidx.graphics:graphics-path:1.0.1

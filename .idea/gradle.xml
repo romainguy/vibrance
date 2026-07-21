@@ -14,6 +14,7 @@
             <option value="$PROJECT_DIR$/vibrance-benchmark" />
             <option value="$PROJECT_DIR$/vibrance-compose" />
             <option value="$PROJECT_DIR$/vibrance-compose-demo" />
+            <option value="$PROJECT_DIR$/vibrance-compose-demo-android" />
           </set>
         </option>
       </GradleProjectSettings>

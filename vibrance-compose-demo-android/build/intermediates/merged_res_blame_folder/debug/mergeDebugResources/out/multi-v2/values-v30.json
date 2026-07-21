@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "dev.romainguy.vibrance.demo.app.vibrance-compose-demo-android-mergeDebugResources-36:/values-v30/values-v30.xml",
+            "map": [
+                {
+                    "source": "/Users/romainguy/.gradle/caches/9.6.1/transforms/83f1198add860950921e4e7d1e31fc94/transformed/material3/res/values-v30/values-v30.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "72",
+                        "endOffsets": "123"
+                    }
+                }
+            ]
+        }
+    ]
+}

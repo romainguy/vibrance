@@ -1,38 +1,54 @@
 [versions]
+activityCompose = "1.13.0"
 agp = "9.3.0"
+#noinspection UnusedVersionCatalogEntry
 android-minSdk = "24"
+#noinspection UnusedVersionCatalogEntry
 android-app-minSdk = "26"
+#noinspection UnusedVersionCatalogEntry
 android-compileSdk = "37"
+#noinspection UnusedVersionCatalogEntry
 android-targetSdk = "37"
-benchmark = "1.5.0-alpha06"
+benchmark = "1.5.0-alpha07"
 benchmarkJunit4 = "1.4.1"
+composeBom = "2026.06.01"
 compose = "1.11.1"
 compose-plugin = "1.11.1"
+componentsResources = "1.11.1"
+coreKtx = "1.19.0"
 dokka = "2.2.0"
+foundation = "1.11.1"
 junit = "1.3.0"
 junitVersion = "4.13.2"
-kotlin = "2.4.0"
+kotlin = "2.4.10"
+lifecycleRuntimeKtx = "2.11.0"
+material3 = "1.9.0"
 runner = "1.7.0"
-vanniktechMavenPublish = "0.36.0"
-ui = "1.11.2"
-coreKtx = "1.19.0"
-lifecycleRuntimeKtx = "2.10.0"
-activityCompose = "1.13.0"
-composeBom = "2026.05.01"
+runtime = "1.11.1"
+ui = "1.11.4"
+vanniktechMavenPublish = "0.37.0"
 
 [libraries]
-compose-animation = { module = "org.jetbrains.compose.animation:animation" , version.ref = "compose" }
-compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 runner = { group = "androidx.test", name = "runner", version.ref = "runner" }
 junit = { group = "androidx.test.ext", name = "junit", version.ref = "junit" }
 junit-junit = { group = "junit", name = "junit", version.ref = "junitVersion" }
 benchmark-junit4 = { group = "androidx.benchmark", name = "benchmark-junit4", version.ref = "benchmarkJunit4" }
-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
+
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
+
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "componentsResources" }
+compose-animation = { module = "org.jetbrains.compose.animation:animation" , version.ref = "compose" }
+compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose" }
+compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "foundation" }
+compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "runtime" }
+compose-jetbrains-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
+
+ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
 ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
 ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
@@ -40,12 +56,15 @@ ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 material3 = { group = "androidx.compose.material3", name = "material3" }
 
 [plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
-benchmark = { id = "androidx.benchmark", version.ref = "benchmark" }
-compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
-jetbrainsCompose = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+
+benchmark = { id = "androidx.benchmark", version.ref = "benchmark" }
+
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+jetbrainsCompose = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }
+
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 vanniktech-mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktechMavenPublish" }
-android-application = { id = "com.android.application", version.ref = "agp" }

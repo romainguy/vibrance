@@ -1,0 +1,175 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="dev.romainguy.vibrance.demo"
+4    android:versionCode="1"
+5    android:versionName="1.0" >
+6
+7    <uses-sdk
+7-->INJECTED
+8        android:minSdkVersion="26"
+8-->INJECTED
+9        android:targetSdkVersion="37" />
+9-->INJECTED
+10
+11    <permission
+11-->[androidx.core:core:1.19.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/432ec481c917c3fd1aee31710fe3ca91/transformed/core-1.19.0/AndroidManifest.xml:22:5-24:47
+12        android:name="dev.romainguy.vibrance.demo.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+12-->[androidx.core:core:1.19.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/432ec481c917c3fd1aee31710fe3ca91/transformed/core-1.19.0/AndroidManifest.xml:23:9-81
+13        android:protectionLevel="signature" />
+13-->[androidx.core:core:1.19.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/432ec481c917c3fd1aee31710fe3ca91/transformed/core-1.19.0/AndroidManifest.xml:24:9-44
+14
+15    <uses-permission android:name="dev.romainguy.vibrance.demo.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+15-->[androidx.core:core:1.19.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/432ec481c917c3fd1aee31710fe3ca91/transformed/core-1.19.0/AndroidManifest.xml:26:5-97
+15-->[androidx.core:core:1.19.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/432ec481c917c3fd1aee31710fe3ca91/transformed/core-1.19.0/AndroidManifest.xml:26:22-94
+16
+17    <application
+17-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:4:5-22:19
+18        android:allowBackup="true"
+18-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:5:13-39
+19        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+19-->[androidx.core:core:1.19.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/432ec481c917c3fd1aee31710fe3ca91/transformed/core-1.19.0/AndroidManifest.xml:28:18-86
+20        android:debuggable="true"
+21        android:extractNativeLibs="false"
+21-->INJECTED
+22        android:icon="@mipmap/ic_launcher"
+22-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:6:13-47
+23        android:label="@string/app_name"
+23-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:7:13-45
+24        android:roundIcon="@mipmap/ic_launcher_round"
+24-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:8:13-58
+25        android:supportsRtl="true"
+25-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:9:13-39
+26        android:testOnly="true"
+27        android:theme="@style/Theme.Vibrance" >
+27-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:10:13-50
+28        <activity
+28-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:11:9-21:20
+29            android:name="dev.romainguy.vibrance.demo.VibranceActivity"
+29-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:12:17-76
+30            android:exported="true"
+30-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:13:17-40
+31            android:label="@string/app_name"
+31-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:14:17-49
+32            android:theme="@style/Theme.Vibrance" >
+32-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:15:17-54
+33            <intent-filter>
+33-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:16:13-20:29
+34                <action android:name="android.intent.action.MAIN" />
+34-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:17:17-68
+34-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:17:25-66
+35
+36                <category android:name="android.intent.category.LAUNCHER" />
+36-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:19:17-76
+36-->/Users/romainguy/Source/vibrance/vibrance-compose-demo-android/src/main/AndroidManifest.xml:19:27-74
+37            </intent-filter>
+38        </activity>
+39
+40        <provider
+40-->[org.jetbrains.compose.components:components-resources-android:1.11.1] /Users/romainguy/.gradle/caches/9.6.1/transforms/a953c4e029fc60fe49c4310309eda9c7/transformed/library-release/AndroidManifest.xml:8:9-13:20
+41            android:name="org.jetbrains.compose.resources.AndroidContextProvider"
+41-->[org.jetbrains.compose.components:components-resources-android:1.11.1] /Users/romainguy/.gradle/caches/9.6.1/transforms/a953c4e029fc60fe49c4310309eda9c7/transformed/library-release/AndroidManifest.xml:9:13-82
+42            android:authorities="dev.romainguy.vibrance.demo.resources.AndroidContextProvider"
+42-->[org.jetbrains.compose.components:components-resources-android:1.11.1] /Users/romainguy/.gradle/caches/9.6.1/transforms/a953c4e029fc60fe49c4310309eda9c7/transformed/library-release/AndroidManifest.xml:10:13-84
+43            android:enabled="true"
+43-->[org.jetbrains.compose.components:components-resources-android:1.11.1] /Users/romainguy/.gradle/caches/9.6.1/transforms/a953c4e029fc60fe49c4310309eda9c7/transformed/library-release/AndroidManifest.xml:11:13-35
+44            android:exported="false" >
+44-->[org.jetbrains.compose.components:components-resources-android:1.11.1] /Users/romainguy/.gradle/caches/9.6.1/transforms/a953c4e029fc60fe49c4310309eda9c7/transformed/library-release/AndroidManifest.xml:12:13-37
+45        </provider>
+46
+47        <activity
+47-->[androidx.compose.ui:ui-tooling-android:1.11.4] /Users/romainguy/.gradle/caches/9.6.1/transforms/e821be4ab08dca0d94af8e6e09252107/transformed/ui-tooling/AndroidManifest.xml:23:9-25:39
+48            android:name="androidx.compose.ui.tooling.PreviewActivity"
+48-->[androidx.compose.ui:ui-tooling-android:1.11.4] /Users/romainguy/.gradle/caches/9.6.1/transforms/e821be4ab08dca0d94af8e6e09252107/transformed/ui-tooling/AndroidManifest.xml:24:13-71
+49            android:exported="true" />
+49-->[androidx.compose.ui:ui-tooling-android:1.11.4] /Users/romainguy/.gradle/caches/9.6.1/transforms/e821be4ab08dca0d94af8e6e09252107/transformed/ui-tooling/AndroidManifest.xml:25:13-36
+50
+51        <uses-library
+51-->[androidx.window:window:1.5.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/b33636da2b822d9366c8de187bacbbe4/transformed/window-1.5.0/AndroidManifest.xml:23:9-25:40
+52            android:name="androidx.window.extensions"
+52-->[androidx.window:window:1.5.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/b33636da2b822d9366c8de187bacbbe4/transformed/window-1.5.0/AndroidManifest.xml:24:13-54
+53            android:required="false" />
+53-->[androidx.window:window:1.5.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/b33636da2b822d9366c8de187bacbbe4/transformed/window-1.5.0/AndroidManifest.xml:25:13-37
+54        <uses-library
+54-->[androidx.window:window:1.5.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/b33636da2b822d9366c8de187bacbbe4/transformed/window-1.5.0/AndroidManifest.xml:26:9-28:40
+55            android:name="androidx.window.sidecar"
+55-->[androidx.window:window:1.5.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/b33636da2b822d9366c8de187bacbbe4/transformed/window-1.5.0/AndroidManifest.xml:27:13-51
+56            android:required="false" />
+56-->[androidx.window:window:1.5.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/b33636da2b822d9366c8de187bacbbe4/transformed/window-1.5.0/AndroidManifest.xml:28:13-37
+57
+58        <provider
+58-->[androidx.emoji2:emoji2:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/70af43c57b143c76fe7ae05f2c4f2889/transformed/emoji2-1.4.0/AndroidManifest.xml:24:9-32:20
+59            android:name="androidx.startup.InitializationProvider"
+59-->[androidx.emoji2:emoji2:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/70af43c57b143c76fe7ae05f2c4f2889/transformed/emoji2-1.4.0/AndroidManifest.xml:25:13-67
+60            android:authorities="dev.romainguy.vibrance.demo.androidx-startup"
+60-->[androidx.emoji2:emoji2:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/70af43c57b143c76fe7ae05f2c4f2889/transformed/emoji2-1.4.0/AndroidManifest.xml:26:13-68
+61            android:exported="false" >
+61-->[androidx.emoji2:emoji2:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/70af43c57b143c76fe7ae05f2c4f2889/transformed/emoji2-1.4.0/AndroidManifest.xml:27:13-37
+62            <meta-data
+62-->[androidx.emoji2:emoji2:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/70af43c57b143c76fe7ae05f2c4f2889/transformed/emoji2-1.4.0/AndroidManifest.xml:29:13-31:52
+63                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+63-->[androidx.emoji2:emoji2:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/70af43c57b143c76fe7ae05f2c4f2889/transformed/emoji2-1.4.0/AndroidManifest.xml:30:17-75
+64                android:value="androidx.startup" />
+64-->[androidx.emoji2:emoji2:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/70af43c57b143c76fe7ae05f2c4f2889/transformed/emoji2-1.4.0/AndroidManifest.xml:31:17-49
+65            <meta-data
+65-->[androidx.lifecycle:lifecycle-process:2.11.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/68f520adb12875cc191a7e2154af33d6/transformed/lifecycle-process-2.11.0/AndroidManifest.xml:29:13-31:52
+66                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+66-->[androidx.lifecycle:lifecycle-process:2.11.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/68f520adb12875cc191a7e2154af33d6/transformed/lifecycle-process-2.11.0/AndroidManifest.xml:30:17-78
+67                android:value="androidx.startup" />
+67-->[androidx.lifecycle:lifecycle-process:2.11.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/68f520adb12875cc191a7e2154af33d6/transformed/lifecycle-process-2.11.0/AndroidManifest.xml:31:17-49
+68            <meta-data
+68-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:29:13-31:52
+69                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+69-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:30:17-85
+70                android:value="androidx.startup" />
+70-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:31:17-49
+71        </provider>
+72
+73        <activity
+73-->[androidx.compose.ui:ui-test-manifest:1.11.4] /Users/romainguy/.gradle/caches/9.6.1/transforms/84604ccf81ab0dc7a9c169937e401571/transformed/ui-test-manifest-1.11.4/AndroidManifest.xml:23:9-26:79
+74            android:name="androidx.activity.ComponentActivity"
+74-->[androidx.compose.ui:ui-test-manifest:1.11.4] /Users/romainguy/.gradle/caches/9.6.1/transforms/84604ccf81ab0dc7a9c169937e401571/transformed/ui-test-manifest-1.11.4/AndroidManifest.xml:24:13-63
+75            android:exported="true"
+75-->[androidx.compose.ui:ui-test-manifest:1.11.4] /Users/romainguy/.gradle/caches/9.6.1/transforms/84604ccf81ab0dc7a9c169937e401571/transformed/ui-test-manifest-1.11.4/AndroidManifest.xml:25:13-36
+76            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+76-->[androidx.compose.ui:ui-test-manifest:1.11.4] /Users/romainguy/.gradle/caches/9.6.1/transforms/84604ccf81ab0dc7a9c169937e401571/transformed/ui-test-manifest-1.11.4/AndroidManifest.xml:26:13-76
+77
+78        <receiver
+78-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:34:9-52:20
+79            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+79-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:35:13-76
+80            android:directBootAware="false"
+80-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:36:13-44
+81            android:enabled="true"
+81-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:37:13-35
+82            android:exported="true"
+82-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:38:13-36
+83            android:permission="android.permission.DUMP" >
+83-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:39:13-57
+84            <intent-filter>
+84-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:40:13-42:29
+85                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+85-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:17-91
+85-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:25-88
+86            </intent-filter>
+87            <intent-filter>
+87-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:43:13-45:29
+88                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+88-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:17-85
+88-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:25-82
+89            </intent-filter>
+90            <intent-filter>
+90-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:46:13-48:29
+91                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+91-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:17-88
+91-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:25-85
+92            </intent-filter>
+93            <intent-filter>
+93-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:49:13-51:29
+94                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+94-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:17-95
+94-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/romainguy/.gradle/caches/9.6.1/transforms/fda2104e5ccdb80ecfaddce2e4da5858/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:25-92
+95            </intent-filter>
+96        </receiver>
+97    </application>
+98
+99</manifest>
