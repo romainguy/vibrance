@@ -1,9 +1,5 @@
 package dev.romainguy.vibrance.demo
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,32 +22,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.romainguy.vibrance.demo.ui.theme.VibranceTheme
 
-class VibranceActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            VibranceTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Box(
-                        Modifier
-                            .padding(innerPadding)
-                            .fillMaxSize()
-                    ) {
-                        val pagerState = rememberPagerState(pageCount = { 4 })
-                        HorizontalPager(state = pagerState) { page ->
-                            when (page) {
-                                0 -> LinearGradients(Modifier.padding(bottom = 8.dp))
-                                1 -> RadialGradients(Modifier.padding(bottom = 8.dp))
-                                2 -> SweepGradients(Modifier.padding(bottom = 8.dp))
-                                3 -> BrushGradients(Modifier.padding(bottom = 8.dp))
-                            }
-                        }
-                        PageIndicator(pagerState.pageCount, pagerState.currentPage)
-                    }
-                }
+@Composable
+fun VibranceApplication(modifier: Modifier) {
+    Box(modifier) {
+        val pagerState = rememberPagerState(pageCount = { 4 })
+        HorizontalPager(state = pagerState) { page ->
+            when (page) {
+                0 -> LinearGradients(Modifier.padding(bottom = 8.dp))
+                1 -> RadialGradients(Modifier.padding(bottom = 8.dp))
+                2 -> SweepGradients(Modifier.padding(bottom = 8.dp))
+                3 -> BrushGradients(Modifier.padding(bottom = 8.dp))
             }
         }
+        PageIndicator(pagerState.pageCount, pagerState.currentPage)
     }
 }
 

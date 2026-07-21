@@ -9,7 +9,7 @@
             android:supportsRtl="true"
             android:theme="@style/Theme.Vibrance">
         <activity
-                android:name=".VibranceActivity"
+                android:name="dev.romainguy.vibrance.demo.VibranceActivity"
                 android:exported="true"
                 android:label="@string/app_name"
                 android:theme="@style/Theme.Vibrance">

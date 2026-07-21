@@ -1,6 +1,5 @@
 package dev.romainguy.vibrance.demo
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -15,7 +14,7 @@ import androidx.compose.ui.Modifier
 @Composable
 internal fun RowScope.GradientPatch(
     label: String,
-    @SuppressLint("ModifierParameter") gradientModifier: Modifier
+    modifier: Modifier
 ) {
     Column(
         Modifier
@@ -25,7 +24,7 @@ internal fun RowScope.GradientPatch(
         Box(
             Modifier
                 .fillMaxWidth()
-                .weight(1.0f) then gradientModifier
+                .weight(1.0f) then modifier
         )
         Text(label, style = MaterialTheme.typography.labelLarge)
     }
@@ -34,7 +33,7 @@ internal fun RowScope.GradientPatch(
 @Composable
 internal fun ColumnScope.GradientPatch(
     label: String,
-    @SuppressLint("ModifierParameter") gradientModifier: Modifier
+    modifier: Modifier
 ) {
     Column(
         Modifier
@@ -44,7 +43,7 @@ internal fun ColumnScope.GradientPatch(
         Box(
             Modifier
                 .fillMaxWidth()
-                .weight(1.0f) then gradientModifier
+                .weight(1.0f) then modifier
         )
         Text(label, style = MaterialTheme.typography.labelLarge)
     }
