@@ -1,6 +1,6 @@
 [versions]
 activityCompose = "1.13.0"
-agp = "9.3.0"
+agp = "9.3.1"
 #noinspection UnusedVersionCatalogEntry
 android-minSdk = "24"
 #noinspection UnusedVersionCatalogEntry
