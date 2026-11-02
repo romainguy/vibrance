@@ -259,8 +259,8 @@ def fit_mix_nn(neurons=16, sample_size=384):
     batch_size = min(131_072, max(8_192, num_samples // 64), num_samples)
     topk_count = min(64, batch_size)
     num_batches = (num_samples + batch_size - 1) // batch_size
-    epochs = 500
-    log_interval = max(1, epochs // 25)
+    epochs = 1_000
+    log_interval = max(1, epochs // 50)
 
     print(
         f"Training neural network (1 hidden layer, {neurons} neurons, 3 inputs + linear skip) "
@@ -377,15 +377,7 @@ if __name__ == '__main__':
 
     command = sys.argv[1]
 
-    if command == "poly":
-        degree = int(sys.argv[2]) if len(sys.argv) > 2 else 2
-        sample_size = int(sys.argv[3]) if len(sys.argv) > 3 else 384
-        fit_mix(degree=degree, sample_size=sample_size)
-    elif command == "poly3":
-        degree = int(sys.argv[2]) if len(sys.argv) > 2 else 2
-        sample_size = int(sys.argv[3]) if len(sys.argv) > 3 else 384
-        fit3_mix(degree=degree, sample_size=sample_size)
-    elif command == "nn":
+    if command == "nn":
         neurons = int(sys.argv[2]) if len(sys.argv) > 2 else 16
         sample_size = int(sys.argv[3]) if len(sys.argv) > 3 else 384
         fit_mix_nn(neurons=neurons, sample_size=sample_size)
