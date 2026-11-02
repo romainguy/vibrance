@@ -60,7 +60,7 @@ val color = vibrance.colorsMix(
 // Upscaling to latent color space is the most expensive operation.
 // If you are interpolating frequently, pre-compute the latent colors.
 val latentBlue = vibrance.colorToLatentColor(0.0f, 0.0f, 1.0f)
-val latentYellow = vibrance.colorToLatentColor(0.0f, 1.0f, 1.0f)
+val latentYellow = vibrance.colorToLatentColor(1.0f, 1.0f, 0.0f)
 
 // Interpolate the latent colors, which is much faster
 val color = vibrance.latentColorsMix(latentBlue, latentYellow, 0.25f)
