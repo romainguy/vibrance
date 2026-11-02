@@ -7,21 +7,28 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+def get_device():
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    elif torch.cuda.is_available():
+        return torch.device("cuda")
+    else:
+        print("⚠️ Running PyTorch on CPU")
+        return torch.device("cpu")
+
 class PositionalEncoding(nn.Module):
     def __init__(self, num_frequencies=4):
         super().__init__()
         self.num_frequencies = num_frequencies
         # Create frequency bands: 2^0, 2^1, ..., 2^(L-1)
-        self.bands = 2.0 ** torch.linspace(0, num_frequencies - 1, num_frequencies)
+        bands = 2.0 ** torch.linspace(0, num_frequencies - 1, num_frequencies)
+        self.register_buffer("bands", bands, persistent=False)
 
     def forward(self, x):
         # Baseline
-        encoded = [x]
-        for freq in self.bands:
-            encoded.append(torch.sin(x * freq * torch.pi))
-            encoded.append(torch.cos(x * freq * torch.pi))
-            
-        return torch.cat(encoded, dim=-1)
+        angles = x.unsqueeze(-2) * (self.bands.unsqueeze(-1) * torch.pi)
+        trig = torch.cat([torch.sin(angles), torch.cos(angles)], dim=-1)
+        return torch.cat([x, trig.flatten(-2)], dim=-1)
 
 class PigmentsMLP(nn.Module):
     def __init__(self, num_frequencies=4, hidden_dim=32):
@@ -45,6 +52,7 @@ class PigmentsMLP(nn.Module):
         return self.net(x_encoded)
 
 def export(data_config, model):
+    model = model.cpu()
     model.eval()
 
     # Export to ONNX
@@ -71,9 +79,10 @@ def export(data_config, model):
     print(f"Exported to JSON format: {data_config.model_path_json}")
 
 def evaluate_global_accuracy(model, dataset_tensor, num_samples=65_536):
+    device = dataset_tensor.device
     model.eval()
     with torch.no_grad():
-        indices = torch.randint(0, 256, (num_samples, 3))
+        indices = torch.randint(0, 256, (num_samples, 3), device=device)
         x_test = indices.float() / 255.0
         predictions = model(x_test)
         truth = dataset_tensor[indices[:, 0], indices[:, 1], indices[:, 2]]
@@ -83,36 +92,30 @@ def evaluate_global_accuracy(model, dataset_tensor, num_samples=65_536):
         model.train()
         return max_error, mean_error
 
-def train(data_config, dataset):
-    model = PigmentsMLP()
-    print(f"Model parameters: {sum(p.numel() for p in model.parameters())}")
-
-    dataset_tensor = torch.tensor(dataset, dtype=torch.float32)
-
+def train_ohem(model, dataset_tensor, optimizer, criterion):
+    device = dataset_tensor.device
     epochs = 100_000
     batch_size = 8_192
 
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    criterion = nn.HuberLoss(delta=0.1)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
     targeted_batch = int(batch_size * 0.1)                # 10% strictly Z > 220
     ohem_batch = int(batch_size * 0.2)                    # 20% dynamic hard examples
     rand_batch = batch_size - targeted_batch - ohem_batch # 70% uniform random
 
-    best_loss = float('inf')
-    max_error = 0
+    best_loss = torch.tensor(float('inf'), device=device)
+    max_error = torch.zeros((), device=device)
     
     for epoch in range(epochs):
         optimizer.zero_grad()
         
         # Uniform random batch
-        random_indices = torch.randint(0, 256, (rand_batch, 3))
+        random_indices = torch.randint(0, 256, (rand_batch, 3), device=device)
 
         # OHEM batch
         model.eval()
         with torch.no_grad():
-            large_pool_indices = torch.randint(0, 256, (65_536, 3))
+            large_pool_indices = torch.randint(0, 256, (65_536, 3), device=device)
             x_test = large_pool_indices.float() / 255.0
             truth = dataset_tensor[
                 large_pool_indices[:, 0], 
@@ -123,16 +126,16 @@ def train(data_config, dataset):
             predictions = model(x_test)
 
             errors = torch.max(torch.abs(predictions - truth), dim=1).values
-            max_error = errors.max().item()
+            max_error = errors.max()
 
             worst_indices = torch.topk(errors, ohem_batch).indices
             hard_indices = large_pool_indices[worst_indices]
         model.train()
 
         # Targeted batch
-        x_targeted = torch.randint(0, 256, (targeted_batch, 1))
-        y_targeted = torch.randint(0, 256, (targeted_batch, 1)) 
-        z_targeted = torch.randint(210, 256, (targeted_batch, 1))
+        x_targeted = torch.randint(0, 256, (targeted_batch, 1), device=device)
+        y_targeted = torch.randint(0, 256, (targeted_batch, 1), device=device)
+        z_targeted = torch.randint(210, 256, (targeted_batch, 1), device=device)
         targeted_indices = torch.cat([x_targeted, y_targeted, z_targeted], dim=1)
 
         combined_indices = torch.cat([random_indices, hard_indices, targeted_indices], dim=0)
@@ -155,15 +158,89 @@ def train(data_config, dataset):
         optimizer.step()
         scheduler.step()
 
-        current_loss = loss.item()
-        if current_loss < best_loss:
-            best_loss = current_loss
+        best_loss = torch.minimum(best_loss, loss.detach())
 
         if epoch % 1000 == 0:
             print(
                 f"Epoch {epoch} | LR: {optimizer.param_groups[0]['lr']:.2e} | "
-                f"Best Loss: {best_loss:.8f} | Max Error: {max_error:.4f}"
+                f"Best Loss: {best_loss.item():.8f} | Max Error: {max_error.item():.4f}"
             )
+
+    return best_loss.item()
+
+def train_full(model, dataset_tensor, optimizer, criterion):
+    device = dataset_tensor.device
+    epochs = 1_000
+    batch_size = 8_192
+
+    coords = torch.arange(256, dtype=torch.float32, device=device) / 255.0
+    grid_r, grid_g, grid_b = torch.meshgrid(coords, coords, coords, indexing='ij')
+    flat_inputs = torch.stack([grid_r, grid_g, grid_b], dim=-1).reshape(-1, 3)
+    flat_targets = dataset_tensor.reshape(-1, 3)
+
+    num_samples = flat_inputs.shape[0]
+    num_batches = (num_samples + batch_size - 1) // batch_size
+
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs * num_batches)
+
+    best_loss = torch.tensor(float('inf'), device=device)
+
+    for epoch in range(epochs):
+        permutation = torch.randperm(num_samples, device=device)
+        shuffled_inputs = flat_inputs[permutation]
+        shuffled_targets = flat_targets[permutation]
+        epoch_loss = torch.zeros((), device=device)
+        max_error = torch.zeros((), device=device)
+
+        for start in range(0, num_samples, batch_size):
+            optimizer.zero_grad()
+
+            x_train = shuffled_inputs[start:start + batch_size]
+            y_target = shuffled_targets[start:start + batch_size]
+
+            y_prediction = model(x_train)
+
+            loss = criterion(y_prediction, y_target)
+            loss.backward()
+
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
+            optimizer.step()
+            scheduler.step()
+
+            with torch.no_grad():
+                epoch_loss += loss
+                max_error = torch.maximum(max_error, torch.max(torch.abs(y_prediction - y_target)))
+
+        current_loss = epoch_loss / num_batches
+        best_loss = torch.minimum(best_loss, current_loss)
+
+        if epoch % 20 == 0:
+            print(
+                f"Epoch {epoch} | LR: {optimizer.param_groups[0]['lr']:.2e} | "
+                f"Best Loss: {best_loss.item():.8f} | Max Error: {max_error.item():.4f}"
+            )
+
+    return best_loss.item()
+
+def train(data_config, dataset):
+    device = get_device()
+    print(f"Using device: {device}")
+
+    model = PigmentsMLP().to(device)
+    print(f"Model parameters: {sum(p.numel() for p in model.parameters())}")
+
+    dataset_tensor = torch.tensor(dataset, dtype=torch.float32, device=device)
+
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    criterion = nn.MSELoss()
+
+    if data_config.use_ohem:
+        print("Training mode: OHEM")
+        best_loss = train_ohem(model, dataset_tensor, optimizer, criterion)
+    else:
+        print("Training mode: Full dataset")
+        best_loss = train_full(model, dataset_tensor, optimizer, criterion)
 
     max_error, mean_error = evaluate_global_accuracy(model, dataset_tensor)
     print(f"Final Training Loss: {best_loss:.8f}")
@@ -180,6 +257,10 @@ def calculate_operations(num_freqs, hidden_dimension):
     return trig_ops + ops_layer1 + ops_layer2 + ops_layer3
 
 def automated_search(dataset_tensor):
+    device = get_device()
+    print(f"Using device: {device}")
+    dataset_tensor = dataset_tensor.to(device)
+
     frequencies_to_test = [4, 6]
     hidden_dims_to_test = [8, 16, 32]
     
@@ -189,16 +270,16 @@ def automated_search(dataset_tensor):
         for hidden in hidden_dims_to_test:
             print(f"Training Model: {freqs} Freqs, {hidden} Hidden Neurons...")
             
-            model = PigmentsMLP(num_frequencies=freqs, hidden_dim=hidden)
+            model = PigmentsMLP(num_frequencies=freqs, hidden_dim=hidden).to(device)
             optimizer = optim.Adam(model.parameters(), lr=2e-3)
             criterion = nn.MSELoss()
 
-            best_loss = float('inf')
+            best_loss = torch.tensor(float('inf'), device=device)
 
             model.train()
             for _ in range(40_000):
                 optimizer.zero_grad()
-                random_indices = torch.randint(0, 256, (8_192, 3))
+                random_indices = torch.randint(0, 256, (8_192, 3), device=device)
 
                 x_train = random_indices.float() / 255.0
 
@@ -214,11 +295,11 @@ def automated_search(dataset_tensor):
                 loss.backward()
                 optimizer.step()
 
-                best_loss = min(best_loss, loss.item())
+                best_loss = torch.minimum(best_loss, loss.detach())
                 
             model.eval()
             with torch.no_grad():
-                test_indices = torch.randint(0, 256, (65_536, 3))
+                test_indices = torch.randint(0, 256, (65_536, 3), device=device)
                 x_test = test_indices.float() / 255.0
                 y_test = dataset_tensor[test_indices[:, 0], test_indices[:, 1], test_indices[:, 2]]
                 preds = model(x_test)
@@ -230,7 +311,7 @@ def automated_search(dataset_tensor):
                 "hidden": hidden, 
                 "max_error": max_error, 
                 "math_ops": ops,
-                "best_loss": best_loss
+                "best_loss": best_loss.item()
             })
             
     print(f"{'Freqs':<8} | {'Hidden':<8} | {'Math Ops':<10} | {'Max Error':<9} | {'Best Loss'}")
