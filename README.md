@@ -75,6 +75,9 @@ vibrance.colorToLatentColor(0.0f, 0.0f, 1.0f, latentBlue)
 
 ### Jetpack Compose (`vibrance-compose`)
 
+> [!WARNING]
+> On Android, the Compose modifiers and brushes require API level 33+.
+
 #### Modifiers
 
 If you are using Jetpack Compose or Compose Multiplatform, you can easily create natural gradients
