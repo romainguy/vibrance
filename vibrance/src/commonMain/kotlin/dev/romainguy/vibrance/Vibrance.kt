@@ -151,9 +151,8 @@ class Vibrance {
         val latent0 = buffer[0]
         val latent1 = buffer[1]
         val latent2 = buffer[2]
-        val latent3 = 1.0f - (latent0 + latent1 + latent2)
 
-        pigmentsMixLinear(latent0, latent1, latent2, latent3, buffer)
+        pigmentsMixLinear(latent0, latent1, latent2, buffer)
 
         latentColor[0] = latent0
         latentColor[1] = latent1
@@ -185,9 +184,8 @@ class Vibrance {
         val blue = latentColor[0].fastCoerceIn(0.0f, 1.0f)
         val magenta = latentColor[1].fastCoerceIn(0.0f, 1.0f)
         val yellow = latentColor[2].fastCoerceIn(0.0f, 1.0f)
-        val white = 1.0f - (blue + magenta + yellow)
 
-        pigmentsMixLinear(blue, magenta, yellow, white, color)
+        pigmentsMixLinear(blue, magenta, yellow, color)
 
         color[0] = oetfSrgb((color[0] + latentColor[3]).fastCoerceIn(0.0f, 1.0f))
         color[1] = oetfSrgb((color[1] + latentColor[4]).fastCoerceIn(0.0f, 1.0f))
@@ -224,7 +222,7 @@ class Vibrance {
         val c0 = lerp(src[0], dst[0], amount)
         val c1 = lerp(src[1], dst[1], amount)
         val c2 = lerp(src[2], dst[2], amount)
-        pigmentsMixLinear(c0, c1, c2, 1.0f - (c0 + c1 + c2), color)
+        pigmentsMixLinear(c0, c1, c2, color)
 
         color[0] = oetfSrgb((color[0] + lerp(src[3], dst[3], amount)).fastCoerceIn(0.0f, 1.0f))
         color[1] = oetfSrgb((color[1] + lerp(src[4], dst[4], amount)).fastCoerceIn(0.0f, 1.0f))
@@ -277,9 +275,8 @@ class Vibrance {
         val srcPigment0 = color[0]
         val srcPigment1 = color[1]
         val srcPigment2 = color[2]
-        val srcPigment3 = 1.0f - (srcPigment0 + srcPigment1 + srcPigment2)
 
-        pigmentsMixLinear(srcPigment0, srcPigment1, srcPigment2, srcPigment3, color)
+        pigmentsMixLinear(srcPigment0, srcPigment1, srcPigment2, color)
         val srcRemainderR = eotfSrgb(srcR) - color[0]
         val srcRemainderG = eotfSrgb(srcG) - color[1]
         val srcRemainderB = eotfSrgb(srcB) - color[2]
@@ -293,9 +290,8 @@ class Vibrance {
         val dstPigment0 = color[0]
         val dstPigment1 = color[1]
         val dstPigment2 = color[2]
-        val dstPigment3 = 1.0f - (dstPigment0 + dstPigment1 + dstPigment2)
 
-        pigmentsMixLinear(dstPigment0, dstPigment1, dstPigment2, dstPigment3, color)
+        pigmentsMixLinear(dstPigment0, dstPigment1, dstPigment2, color)
         val dstRemainderR = eotfSrgb(dstR) - color[0]
         val dstRemainderG = eotfSrgb(dstG) - color[1]
         val dstRemainderB = eotfSrgb(dstB) - color[2]
@@ -303,7 +299,7 @@ class Vibrance {
         val c0 = lerp(srcPigment0, dstPigment0, amount)
         val c1 = lerp(srcPigment1, dstPigment1, amount)
         val c2 = lerp(srcPigment2, dstPigment2, amount)
-        pigmentsMixLinear(c0, c1, c2, 1.0f - (c0 + c1 + c2), color)
+        pigmentsMixLinear(c0, c1, c2, color)
 
         color[0] = oetfSrgb((color[0] + lerp(srcRemainderR, dstRemainderR, amount)).fastCoerceIn(0.0f, 1.0f))
         color[1] = oetfSrgb((color[1] + lerp(srcRemainderG, dstRemainderG, amount)).fastCoerceIn(0.0f, 1.0f))
@@ -343,7 +339,7 @@ class Vibrance {
         }
         requirePrecondition(color.size >= 3) { "color must have a size >= 3" }
 
-        pigmentsMixLinear(blue, magenta, yellow, white, color)
+        pigmentsMixLinear(blue, magenta, yellow, color)
 
         color[0] = oetfSrgb(color[0])
         color[1] = oetfSrgb(color[1])
@@ -359,57 +355,95 @@ class Vibrance {
         c0: Float,
         c1: Float,
         c2: Float,
-        c3: Float,
         color: FloatArray
     ) {
         // Mixing pigments to a linear sRGB color is implemented using a single hidden
         // layer, 16 neurons, neural network. The loops have been unrolled and the code
         // re-organized to minimize register spilling and keep the instructions count
         // low on arm64.
-        val h1 = max(0f, 0.0098267f + c0 * 0.1174974f + c1 * 0.5078091f - c2 * 0.2443916f - c3 * 0.3047154f)
-        var r = -0.0249582f - h1 * 0.0341629f
-        var g =  0.3584879f + h1 * 0.5760666f
-        var b =  0.0244421f - h1 * 0.0325691f
+        var r =  0.1539308f - c0 * 1.5850313f + c1 * 0.0049084f - c2 * 0.1980831f
+        var g = -0.2101102f - c0 * 0.4561743f - c1 * 0.1060945f + c2 * 0.0193492f
+        var b =  0.1130296f - c0 * 0.2899411f + c1 * 0.0961012f - c2 * 2.8117707f
 
-        val h2 = max(0f, -0.6286458f - c0 * 2.8839049f + c1 * 0.7584528f + c2 * 0.7916569f + c3 * 0.7818422f)
-        r += h2 * 2.7300307f
-        g += h2 * 0.1375640f
-        b -= h2 * 0.0742932f
+        val h0 = max(0f, -0.5732316f + c0 * 2.4183984f + c1 * 0.1553283f + c2 * 0.0646514f)
+        r -= h0 * 0.4831170f
+        g -= h0 * 0.1122841f
+        b -= h0 * 0.0794509f
 
-        val h3 = max(0f, 0.1541230f + c0 * 0.2867913f + c1 * 0.0568774f - c2 * 0.5446743f + c3 * 0.1930918f)
-        r -= h3 * 0.1012921f
-        g += h3 * 0.0580865f
-        b += h3 * 0.5416284f
+        val h1 = max(0f, 0.5309075f - c0 * 6.0326037f - c1 * 0.0136373f + c2 * 0.0213502f)
+        r += h1 * 0.4891092f
+        g -= h1 * 0.0002045f
+        b -= h1 * 0.0159511f
 
-        val h5 = max(0f, 0.0747424f - c0 * 1.7088713f + c1 * 0.1860320f + c2 * 0.2180080f + c3 * 0.2195648f)
-        r += h5 * 1.1088474f
-        g += h5 * 0.0263522f
-        b -= h5 * 0.0335531f
+        val h2 = max(0f, -0.1674344f + c0 * 0.1293259f + c1 * 0.3301166f + c2 * 2.7173810f)
+        r -= h2 * 0.1710407f
+        g += h2 * 0.1534036f
+        b += h2 * 0.8488734f
 
-        val h6 = max(0f, -0.2055153f - c0 * 0.4361817f - c1 * 0.8967318f + c2 * 0.4045247f + c3 * 0.4025162f)
-        r += h6 * 0.1815542f
-        g += h6 * 0.9910546f
-        b -= h6 * 0.1118827f
+        val h3 = max(0f, 0.0287062f + c0 * 2.4400022f + c1 * 0.0027635f - c2 * 0.1977382f)
+        r -= h3 * 0.5497317f
+        g += h3 * 0.0361791f
+        b += h3 * 0.1983951f
 
-        val h9 = max(0f, 0.3792505f + c0 * 0.0286469f + c1 * 0.4794231f - c2 * 0.3951822f + c3 * 0.0329820f)
-        r += h9 * 0.1625491f
-        g -= h9 * 0.6810130f
-        b += h9 * 0.2960019f
+        val h4 = max(0f, 0.4402751f - c0 * 3.0921938f - c1 * 4.6753030f + c2 * 0.0586780f)
+        r += h4 * 0.1203473f
+        g += h4 * 0.4039454f
+        b -= h4 * 0.0212024f
 
-        val h10 = max(0f, -0.1452454f + c0 * 0.2560401f + c1 * 0.1701091f - c2 * 1.2982900f + c3 * 0.3221915f)
-        r -= h10 * 0.1341101f
-        g += h10 * 0.0278039f
-        b += h10 * 1.2155828f
+        val h5 = max(0f, 0.0922123f - c0 * 8.8464346f - c1 * 0.1681033f + c2 * 0.1123352f)
+        r += h5 * 1.0090508f
+        g += h5 * 0.1335829f
+        b -= h5 * 0.0686533f
 
-        val h11 = max(0f, 0.2256926f - c0 * 0.1793450f - c1 * 0.3194858f - c2 * 0.0576552f + c3 * 0.5597214f)
-        r += h11 * 0.0951412f
-        g += h11 * 0.6306976f
-        b += h11 * 0.1533901f
+        val h6 = max(0f, -0.6625637f + c0 * 0.1312097f + c1 * 0.1675960f + c2 * 1.9033443f)
+        r -= h6 * 0.0016896f
+        g += h6 * 0.0071924f
+        b += h6 * 0.4053358f
 
-        val h12 = max(0f, 0.0271525f + c0 * 0.2065663f + c1 * 0.1657660f - c2 * 0.9326340f + c3 * 0.2456872f)
-        r += h12 * 0.0214799f
-        g += h12 * 0.0282143f
-        b += h12 * 0.8276884f
+        val h7 = max(0f, 0.4586772f - c0 * 0.0998359f - c1 * 0.2719077f - c2 * 3.2554240f)
+        r -= h7 * 0.0355527f
+        g += h7 * 0.0159359f
+        b += h7 * 0.5412980f
+
+        val h8 = max(0f, 1.4274933f - c0 * 1.3719325f - c1 * 1.0621926f - c2 * 1.4547547f)
+        r += h8 * 0.1521681f
+        g += h8 * 0.3157202f
+        b += h8 * 0.4113466f
+
+        val h9 = max(0f, 0.6399117f - c0 * 1.0160148f - c1 * 2.0311494f - c2 * 0.0227793f)
+        r -= h9 * 0.0102088f
+        g += h9 * 0.3475253f
+        b -= h9 * 0.0262109f
+
+        val h10 = max(0f, 0.8562082f + c0 * 3.4214549f - c1 * 0.8499470f - c2 * 0.8562099f)
+        r -= h10 * 0.5840385f
+        g += h10 * 0.2226422f
+        b -= h10 * 0.0267674f
+
+        val h11 = max(0f, 0.9718049f - c0 * 4.0978346f - c1 * 0.2651648f - c2 * 0.1055439f)
+        r += h11 * 0.5092035f
+        g += h11 * 0.0837957f
+        b += h11 * 0.0589227f
+
+        val h12 = max(0f, -0.1236852f + c0 * 2.4840240f - c1 * 0.0313387f + c2 * 0.6974269f)
+        r += h12 * 0.3274774f
+        g += h12 * 0.0674772f
+        b += h12 * 0.0903832f
+
+        val h13 = max(0f, 0.2737229f - c0 * 7.6579404f - c1 * 0.0605621f + c2 * 0.0917635f)
+        r += h13 * 0.8107759f
+        g += h13 * 0.0513009f
+        b -= h13 * 0.0689548f
+
+        val h14 = max(0f, -0.5286661f + c0 * 1.7521223f + c1 * 2.2740808f + c2 * 0.6740580f)
+        r -= h14 * 0.0910447f
+        g += h14 * 0.0987217f
+        b -= h14 * 0.0352297f
+
+        val h15 = max(0f, -0.0743285f + c0 * 4.1528034f - c1 * 0.0005895f + c2 * 0.0491316f)
+        r += h15 * 1.3558975f
+        g -= h15 * 0.0600876f
+        b += h15 * 0.0716275f
 
         color[0] = r.fastCoerceIn(0.0f, 1.0f)
         color[1] = g.fastCoerceIn(0.0f, 1.0f)
