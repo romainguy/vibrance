@@ -21,11 +21,17 @@ class DataConfig:
         model_path_json,
         model_path_kotlin,
         lut_path_npy,
-        use_ohem=True
+        mix_path_python,
+        mix_path_kotlin,
+        mix_path_glsl,
+        use_ohem
     ):
         self.model_path_onnx = model_path_onnx
         self.model_path_json = model_path_json
         self.model_path_kotlin = model_path_kotlin
+        self.mix_path_python = mix_path_python
+        self.mix_path_kotlin = mix_path_kotlin
+        self.mix_path_glsl = mix_path_glsl
         self.lut_path_npy = lut_path_npy
         self.use_ohem = use_ohem
 

@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import os
 import pigments
+import re
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -198,6 +199,168 @@ def generate_shader_neural_network(mlp_model):
 
     return "\n".join(lines)
 
+def _replace_python_function(filepath, function_name, new_code):
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"Could not find {filepath}")
+
+    with open(filepath, "r", encoding="utf-8", newline="") as f:
+        content = f.read()
+
+    line_sep = "\r\n" if "\r\n" in content else "\n"
+    trailing_newline = content.endswith("\n")
+    lines = content.splitlines()
+
+    def_pattern = re.compile(rf"^([ ]*)def\s+{re.escape(function_name)}\s*\(")
+    matches = [idx for idx, line in enumerate(lines) if def_pattern.match(line)]
+    if not matches:
+        raise ValueError(f"Could not find 'def {function_name}' in {filepath}")
+    if len(matches) > 1:
+        raise ValueError(f"Found multiple definitions of 'def {function_name}' in {filepath}")
+
+    start_idx = matches[0]
+    base_indent = len(def_pattern.match(lines[start_idx]).group(1))
+
+    paren_depth = 0
+    header_end_idx = start_idx
+    while header_end_idx < len(lines):
+        code_part = lines[header_end_idx].split("#", 1)[0]
+        for ch in code_part:
+            if ch in "([{":
+                paren_depth += 1
+            elif ch in ")]}":
+                paren_depth -= 1
+        if paren_depth <= 0 and code_part.rstrip().endswith(":"):
+            break
+        header_end_idx += 1
+
+    if header_end_idx >= len(lines):
+        raise ValueError(f"Malformed definition of 'def {function_name}' in {filepath}")
+
+    end_idx = header_end_idx + 1
+    while end_idx < len(lines):
+        line = lines[end_idx]
+        if line.strip() == "":
+            end_idx += 1
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        if indent <= base_indent:
+            break
+        end_idx += 1
+
+    while end_idx > header_end_idx + 1 and lines[end_idx - 1].strip() == "":
+        end_idx -= 1
+
+    replacement_lines = new_code.splitlines()
+    if replacement_lines:
+        gen_indent = len(replacement_lines[0]) - len(replacement_lines[0].lstrip(" "))
+        if gen_indent != base_indent:
+            adjusted = []
+            for rl in replacement_lines:
+                if rl.strip() == "":
+                    adjusted.append("")
+                elif base_indent > gen_indent:
+                    adjusted.append((" " * (base_indent - gen_indent)) + rl)
+                else:
+                    remove = min(gen_indent - base_indent, len(rl) - len(rl.lstrip(" ")))
+                    adjusted.append(rl[remove:])
+            replacement_lines = adjusted
+
+    updated_lines = lines[:start_idx] + replacement_lines + lines[end_idx:]
+    updated = line_sep.join(updated_lines)
+    if trailing_newline:
+        updated += line_sep
+
+    with open(filepath, "w", encoding="utf-8", newline="") as f:
+        f.write(updated)
+
+def _replace_brace_function(filepath, signature_pattern, new_code, function_name):
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"Could not find {filepath}")
+
+    with open(filepath, "r", encoding="utf-8", newline="") as f:
+        content = f.read()
+
+    matches = list(re.finditer(signature_pattern, content, flags=re.MULTILINE))
+    if not matches:
+        raise ValueError(f"Could not find function '{function_name}' in {filepath}")
+    if len(matches) > 1:
+        raise ValueError(f"Found multiple definitions of '{function_name}' in {filepath}")
+
+    start = matches[0].start()
+    i = matches[0].end()
+    n = len(content)
+    depth = 0
+    found_open_brace = False
+    end = None
+
+    while i < n:
+        if content.startswith("//", i):
+            newline_pos = content.find("\n", i + 2)
+            i = n if newline_pos == -1 else newline_pos + 1
+            continue
+        if content.startswith("/*", i):
+            close_pos = content.find("*/", i + 2)
+            if close_pos == -1:
+                raise ValueError(f"Unterminated block comment in '{function_name}' in {filepath}")
+            i = close_pos + 2
+            continue
+        ch = content[i]
+        if ch in ('"', "'"):
+            quote = ch
+            i += 1
+            while i < n:
+                if content[i] == "\\":
+                    i += 2
+                    continue
+                if content[i] == quote:
+                    i += 1
+                    break
+                i += 1
+            continue
+        if ch == "{":
+            depth += 1
+            found_open_brace = True
+        elif ch == "}":
+            if not found_open_brace:
+                raise ValueError(f"Unexpected '}}' before opening '{{' in '{function_name}' in {filepath}")
+            depth -= 1
+            if depth == 0:
+                end = i + 1
+                break
+        i += 1
+
+    if end is None:
+        raise ValueError(f"Could not find closing '}}' for '{function_name}' in {filepath}")
+
+    replacement = new_code.replace("\n", "\r\n") if "\r\n" in content else new_code
+    updated = content[:start] + replacement + content[end:]
+
+    with open(filepath, "w", encoding="utf-8", newline="") as f:
+        f.write(updated)
+
+def update_source_files(data_config, mlp_model):
+    python_code = generate_python_neural_network(mlp_model)
+    _replace_python_function(data_config.mix_path_python, "mix_as_nn", python_code)
+    print(f"Updated Python implementation in: {data_config.mix_path_python}")
+
+    kotlin_code = generate_kotlin_neural_network(mlp_model)
+    _replace_brace_function(
+        data_config.mix_path_kotlin,
+        r"^[ \t]*internal\s+fun\s+pigmentsMixLinear\s*\(",
+        kotlin_code,
+        "pigmentsMixLinear"
+    )
+    print(f"Updated Kotlin implementation in: {data_config.mix_path_kotlin}")
+
+    glsl_code = generate_shader_neural_network(mlp_model)
+    _replace_brace_function(
+        data_config.mix_path_glsl,
+        r"^[ \t]*float3\s+mixPigments\s*\(",
+        glsl_code,
+        "mixPigments"
+    )
+    print(f"Updated GLSL implementation in: {data_config.mix_path_glsl}")
+
 def _generate_simplex_training_samples(num_samples):
     n_uniform = max(1, int(num_samples * 0.70))
     n_boundary = max(1, int(num_samples * 0.18))
@@ -241,7 +404,7 @@ def _mix_linear_gpu(concentrations_4d, device, chunk_size=131_072):
             outputs.append(torch.clamp(rgb, 0.0, 1.0))
     return torch.cat(outputs, dim=0)
 
-def fit_mix_nn(neurons=16, sample_size=384):
+def fit_mix_nn(data_config, neurons=16, sample_size=384):
     device = pg.device
     print(f"Using device: {device}")
 
@@ -356,16 +519,9 @@ def fit_mix_nn(neurons=16, sample_size=384):
     print(f"90.0th percentile error  : {np.percentile(uniform_errors, 90):.6f}")
     print(f"99.0th percentile error  : {np.percentile(uniform_errors, 99):.6f}")
     print(f"99.9th percentile error  : {np.percentile(uniform_errors, 99.9):.6f}")
-    print(f"Maximum absolute error   : {np.max(all_errors):.6f}")
+    print(f"Maximum absolute error   : {np.max(all_errors):.6f}\n")
 
-    print("\n>> Executable Python Neural Network Function")
-    print(generate_python_neural_network(model))
-
-    print("\n>> Executable Kotlin Neural Network Function")
-    print(generate_kotlin_neural_network(model))
-
-    print("\n>> Executable GLSL Neural Network Function")
-    print(generate_shader_neural_network(model))
+    update_source_files(data_config, model)
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
@@ -376,8 +532,9 @@ if __name__ == '__main__':
         sys.exit(0)
 
     command = sys.argv[1]
+    data_config = pigments.load_data_config_from_json("data_config.json")
 
     if command == "nn":
         neurons = int(sys.argv[2]) if len(sys.argv) > 2 else 16
         sample_size = int(sys.argv[3]) if len(sys.argv) > 3 else 384
-        fit_mix_nn(neurons=neurons, sample_size=sample_size)
+        fit_mix_nn(data_config, neurons=neurons, sample_size=sample_size)
