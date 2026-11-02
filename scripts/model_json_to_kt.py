@@ -53,7 +53,7 @@ def to_camel_case(key):
 def convert_json_to_kotlin(
     input_json_path,
     output_kt_path,
-    object_name="PigmentsModelWeights"
+    object_name="ColorToPigmentsWeights"
 ):
     if not os.path.exists(input_json_path):
         print(f"Error: Could not find {input_json_path}")

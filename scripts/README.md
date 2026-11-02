@@ -17,6 +17,10 @@ To install all the necessary dependencies for the scripts mentioned below, you c
 `create_venv.sh`. This will create a Python virtual environment in `.venv` that you will
 need to activate to use.
 
+> [!CAUTION]
+> Python 3.11 or greater is required to run the scripts. The `create_env.sh` script
+> directly invokes `python3.11` so you can simply `brew install python@3.11` on macOS.
+
 ## 1. Pigments Optimization
 
 The reflectance and absorption data stored in the CSV files in `data/` is measured directly

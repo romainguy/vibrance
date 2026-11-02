@@ -48,7 +48,7 @@ def export(data_config, model):
     model.eval()
 
     # Export to ONNX
-    dummy_input = torch.tensor([[0.5, 0.5, 0.5]], dtype=torch.float32)
+    dummy_input = torch.tensor([[0.5, 0.5, 0.5], [0.5, 0.5, 0.5]], dtype=torch.float32)
     torch.onnx.export(
         model,
         dummy_input,
@@ -56,7 +56,8 @@ def export(data_config, model):
         export_params=True,
         input_names=['rgb_input'],
         output_names=['latent_out'],
-        dynamic_shapes={"x": {0: "batch_size"}}
+        dynamic_shapes={"x": {0: "batch_size"}},
+        dynamo=True
     )
     print(f"Exported to ONNX format: {data_config.model_path_onnx}")
 
