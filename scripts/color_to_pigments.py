@@ -78,19 +78,30 @@ def export(data_config, model):
         json.dump(export_data, f)        
     print(f"Exported to JSON format: {data_config.model_path_json}")
 
-def evaluate_global_accuracy(model, dataset_tensor, num_samples=65_536):
+def evaluate_global_accuracy(model, dataset_tensor, batch_size=262_144):
     device = dataset_tensor.device
     model.eval()
     with torch.no_grad():
-        indices = torch.randint(0, 256, (num_samples, 3), device=device)
-        x_test = indices.float() / 255.0
-        predictions = model(x_test)
-        truth = dataset_tensor[indices[:, 0], indices[:, 1], indices[:, 2]]
-        errors = torch.abs(predictions - truth)
-        max_error = torch.max(errors).item()
-        mean_error = torch.mean(errors).item()
+        coords = torch.arange(256, dtype=torch.float32, device=device) / 255.0
+        grid_r, grid_g, grid_b = torch.meshgrid(coords, coords, coords, indexing='ij')
+        flat_inputs = torch.stack([grid_r, grid_g, grid_b], dim=-1).reshape(-1, 3)
+        flat_targets = dataset_tensor.reshape(-1, 3)
+
+        num_samples = flat_inputs.shape[0]
+        max_error = torch.zeros((), device=device)
+        weighted_mean_error = torch.zeros((), device=device)
+
+        for start in range(0, num_samples, batch_size):
+            x_test = flat_inputs[start:start + batch_size]
+            truth = flat_targets[start:start + batch_size]
+            predictions = model(x_test)
+            errors = torch.abs(predictions - truth)
+            max_error = torch.maximum(max_error, torch.max(errors))
+            weighted_mean_error += torch.mean(errors) * x_test.shape[0]
+
+        mean_error = (weighted_mean_error / num_samples).item()
         model.train()
-        return max_error, mean_error
+        return max_error.item(), mean_error
 
 def train_ohem(model, dataset_tensor):
     device = dataset_tensor.device
@@ -172,7 +183,7 @@ def train_ohem(model, dataset_tensor):
 
 def train_full(model, dataset_tensor):
     device = dataset_tensor.device
-    epochs = 500
+    epochs = 1_500
     batch_size = 131_072
     topk_count = 64
 
