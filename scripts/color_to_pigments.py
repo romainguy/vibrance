@@ -92,11 +92,13 @@ def evaluate_global_accuracy(model, dataset_tensor, num_samples=65_536):
         model.train()
         return max_error, mean_error
 
-def train_ohem(model, dataset_tensor, optimizer, criterion):
+def train_ohem(model, dataset_tensor):
     device = dataset_tensor.device
     epochs = 100_000
     batch_size = 8_192
 
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    criterion = nn.MSELoss()
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
     targeted_batch = int(batch_size * 0.1)                # 10% strictly Z > 220
@@ -168,10 +170,13 @@ def train_ohem(model, dataset_tensor, optimizer, criterion):
 
     return best_loss.item()
 
-def train_full(model, dataset_tensor, optimizer, criterion):
+def train_full(model, dataset_tensor):
     device = dataset_tensor.device
-    epochs = 1_000
-    batch_size = 8_192
+    epochs = 500
+    batch_size = 131_072
+    topk_count = 64
+
+    optimizer = optim.Adam(model.parameters(), lr=3e-3)
 
     coords = torch.arange(256, dtype=torch.float32, device=device) / 255.0
     grid_r, grid_g, grid_b = torch.meshgrid(coords, coords, coords, indexing='ij')
@@ -184,13 +189,15 @@ def train_full(model, dataset_tensor, optimizer, criterion):
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs * num_batches)
 
     best_loss = torch.tensor(float('inf'), device=device)
+    best_max_error = float('inf')
+    best_state_dict = None
 
     for epoch in range(epochs):
         permutation = torch.randperm(num_samples, device=device)
         shuffled_inputs = flat_inputs[permutation]
         shuffled_targets = flat_targets[permutation]
         epoch_loss = torch.zeros((), device=device)
-        max_error = torch.zeros((), device=device)
+        max_error_sq = torch.zeros((), device=device)
 
         for start in range(0, num_samples, batch_size):
             optimizer.zero_grad()
@@ -200,7 +207,14 @@ def train_full(model, dataset_tensor, optimizer, criterion):
 
             y_prediction = model(x_train)
 
-            loss = criterion(y_prediction, y_target)
+            diff = y_prediction - y_target
+            sq_error = diff * diff
+            mse_loss = torch.mean(sq_error)
+            per_sample_sq_error = torch.max(sq_error, dim=-1).values
+            topk_loss = torch.mean(torch.topk(per_sample_sq_error, k=topk_count).values)
+            l4_loss = torch.mean(sq_error * sq_error)
+            loss = mse_loss + 0.5 * topk_loss + 10.0 * l4_loss
+
             loss.backward()
 
             nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -209,17 +223,26 @@ def train_full(model, dataset_tensor, optimizer, criterion):
             scheduler.step()
 
             with torch.no_grad():
-                epoch_loss += loss
-                max_error = torch.maximum(max_error, torch.max(torch.abs(y_prediction - y_target)))
+                epoch_loss += mse_loss
+                max_error_sq = torch.maximum(max_error_sq, torch.max(per_sample_sq_error))
 
         current_loss = epoch_loss / num_batches
         best_loss = torch.minimum(best_loss, current_loss)
 
+        epoch_max_error = torch.sqrt(max_error_sq).item()
+        if epoch_max_error < best_max_error:
+            best_max_error = epoch_max_error
+            best_state_dict = {k: v.detach().clone() for k, v in model.state_dict().items()}
+
         if epoch % 20 == 0:
             print(
                 f"Epoch {epoch} | LR: {optimizer.param_groups[0]['lr']:.2e} | "
-                f"Best Loss: {best_loss.item():.8f} | Max Error: {max_error.item():.4f}"
+                f"Best MSE: {best_loss.item():.8f} | Max Error: {epoch_max_error:.4f} | "
+                f"Best Max Error: {best_max_error:.4f}"
             )
+
+    if best_state_dict is not None:
+        model.load_state_dict(best_state_dict)
 
     return best_loss.item()
 
@@ -232,15 +255,12 @@ def train(data_config, dataset):
 
     dataset_tensor = torch.tensor(dataset, dtype=torch.float32, device=device)
 
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    criterion = nn.MSELoss()
-
     if data_config.use_ohem:
         print("Training mode: OHEM")
-        best_loss = train_ohem(model, dataset_tensor, optimizer, criterion)
+        best_loss = train_ohem(model, dataset_tensor)
     else:
         print("Training mode: Full dataset")
-        best_loss = train_full(model, dataset_tensor, optimizer, criterion)
+        best_loss = train_full(model, dataset_tensor)
 
     max_error, mean_error = evaluate_global_accuracy(model, dataset_tensor)
     print(f"Final Training Loss: {best_loss:.8f}")
