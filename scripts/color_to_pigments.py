@@ -1,8 +1,10 @@
 import json
+import model_json_to_kt
 import numpy as np
 import onnxruntime as ort
 import pigments
 import sys
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -49,7 +51,57 @@ class PigmentsMLP(nn.Module):
 
     def forward(self, x):
         x_encoded = self.positional_encoding(x)
-        return self.net(x_encoded)
+        out = self.net(x_encoded)
+        if not self.training:
+            return torch.clamp(out, 0.0, 1.0)
+        return out
+
+def _oetf_srgb_torch(x):
+    x = torch.clamp(x, 0.0, 1.0)
+    return torch.where(
+        x <= 0.0031308,
+        12.92 * x,
+        1.055 * torch.pow(torch.clamp(x, min=0.0031308), 1.0 / 2.4) - 0.055
+    )
+
+def _ste_clamp_01(raw_pred, y_target):
+    """
+    Target-aware straight-through clamp to [0, 1] matching ColorToPigmentsModel.kt:
+    allows negative pre-activations on c_i = 0 faces (and >1 pre-activations on c_i = 1)
+    at zero loss without killing corrective gradients when raw_pred is on the wrong side.
+    """
+    clamped = torch.clamp(raw_pred, 0.0, 1.0)
+    in_range = (raw_pred >= 0.0).to(raw_pred.dtype) * (raw_pred <= 1.0).to(raw_pred.dtype)
+    need_up = (raw_pred < 0.0).to(raw_pred.dtype) * (y_target > 0.0).to(raw_pred.dtype)
+    need_dn = (raw_pred > 1.0).to(raw_pred.dtype) * (y_target < 1.0).to(raw_pred.dtype)
+    pass_g = torch.clamp(in_range + need_up + need_dn, max=1.0)
+    eff = raw_pred * pass_g
+    return eff + (clamped - eff).detach()
+
+def _mix_c3_torch(pg, c3):
+    c_sum = c3.sum(dim=-1, keepdim=True)
+    c4 = torch.cat([c3, torch.clamp(1.0 - c_sum, min=0.0)], dim=-1)
+    K = pg.P_star_K.to(device=c3.device, dtype=c3.dtype)
+    S = pg.P_star_S.to(device=c3.device, dtype=c3.dtype)
+    return torch.clamp(pg.mix_torch(c4, K, S), 0.0, 1.0)
+
+def _build_boundary_indices(device):
+    coords = torch.arange(256)
+    gr, gg, gb = torch.meshgrid(coords, coords, coords, indexing="ij")
+    flat_idx = torch.arange(256 * 256 * 256)
+    on_0_255_r = ((gr == 0) | (gr == 255)).reshape(-1)
+    on_0_255_g = ((gg == 0) | (gg == 255)).reshape(-1)
+    on_0_255_b = ((gb == 0) | (gb == 255)).reshape(-1)
+    num_ext = on_0_255_r.int() + on_0_255_g.int() + on_0_255_b.int()
+
+    near_r = ((gr <= 2) | (gr >= 253)).reshape(-1)
+    near_g = ((gg <= 2) | (gg >= 253)).reshape(-1)
+    near_b = ((gb <= 2) | (gb >= 253)).reshape(-1)
+    corner_box_idx = flat_idx[(near_r.int() + near_g.int() + near_b.int()) == 3].to(device)
+    edge_idx = flat_idx[num_ext >= 2].to(device)
+    face_idx = flat_idx[num_ext >= 1].to(device)
+    high_z_idx = flat_idx[(gb >= 205).reshape(-1)].to(device)
+    return corner_box_idx, edge_idx, face_idx, high_z_idx
 
 def export(data_config, model):
     model = model.cpu()
@@ -78,8 +130,17 @@ def export(data_config, model):
         json.dump(export_data, f)        
     print(f"Exported to JSON format: {data_config.model_path_json}")
 
-def evaluate_global_accuracy(model, dataset_tensor, batch_size=262_144):
+    if getattr(data_config, "model_path_kotlin", None):
+        model_json_to_kt.convert_json_to_kotlin(
+            data_config.model_path_json,
+            data_config.model_path_kotlin
+        )
+
+def evaluate_global_accuracy(model, dataset_tensor, pg=None, batch_size=262_144):
     device = dataset_tensor.device
+    if pg is None:
+        pg = pigments.Pigments(pigments.load_config_from_json('config.json'))
+    was_training = model.training
     model.eval()
     with torch.no_grad():
         coords = torch.arange(256, dtype=torch.float32, device=device) / 255.0
@@ -88,194 +149,210 @@ def evaluate_global_accuracy(model, dataset_tensor, batch_size=262_144):
         flat_targets = dataset_tensor.reshape(-1, 3)
 
         num_samples = flat_inputs.shape[0]
-        max_error = torch.zeros((), device=device)
-        weighted_mean_error = torch.zeros((), device=device)
+        max_c_err = 0.0
+        sum_c_err = 0.0
+        max_lin_err = 0.0
+        sum_lin_err = 0.0
+        max_srgb_err = 0.0
+        sum_srgb_err = 0.0
+        max_sum_excess = 0.0
 
         for start in range(0, num_samples, batch_size):
             x_test = flat_inputs[start:start + batch_size]
             truth = flat_targets[start:start + batch_size]
             predictions = model(x_test)
-            errors = torch.abs(predictions - truth)
-            max_error = torch.maximum(max_error, torch.max(errors))
-            weighted_mean_error += torch.mean(errors) * x_test.shape[0]
 
-        mean_error = (weighted_mean_error / num_samples).item()
-        model.train()
-        return max_error.item(), mean_error
+            c_errors = torch.abs(predictions - truth)
+            max_c_err = max(max_c_err, torch.max(c_errors).item())
+            sum_c_err += torch.mean(c_errors).item() * x_test.shape[0]
 
-def train_ohem(model, dataset_tensor):
+            pred_lin = _mix_c3_torch(pg, predictions)
+            gt_lin = _mix_c3_torch(pg, truth)
+            lin_errors = torch.abs(pred_lin - gt_lin)
+            max_lin_err = max(max_lin_err, torch.max(lin_errors).item())
+            sum_lin_err += torch.mean(lin_errors).item() * x_test.shape[0]
+
+            srgb_errors = torch.abs(_oetf_srgb_torch(pred_lin) - _oetf_srgb_torch(gt_lin))
+            max_srgb_err = max(max_srgb_err, torch.max(srgb_errors).item())
+            sum_srgb_err += torch.mean(srgb_errors).item() * x_test.shape[0]
+
+            sum_excess = torch.relu(predictions.sum(dim=-1) - 1.0)
+            max_sum_excess = max(max_sum_excess, torch.max(sum_excess).item())
+
+        mean_c_err = sum_c_err / num_samples
+        mean_lin_err = sum_lin_err / num_samples
+        mean_srgb_err = sum_srgb_err / num_samples
+        print(
+            f"Forward Remainder (Linear RGB) Max Error: {max_lin_err:.6f} | Mean Error: {mean_lin_err:.6f}\n"
+            f"Forward sRGB Max Error:                   {max_srgb_err:.6f} | Mean Error: {mean_srgb_err:.6f}\n"
+            f"Simplex Sum Excess Max (sum(c) - 1):      {max_sum_excess:.6f}"
+        )
+        if was_training:
+            model.train()
+        return max_c_err, mean_c_err
+
+def _train_forward_aware(model, dataset_tensor, pg, total_steps=55_000):
+    t0 = time.time()
     device = dataset_tensor.device
-    epochs = 100_000
-    batch_size = 8_192
-
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    criterion = nn.MSELoss()
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
-
-    targeted_batch = int(batch_size * 0.1)                # 10% strictly Z > 220
-    ohem_batch = int(batch_size * 0.2)                    # 20% dynamic hard examples
-    rand_batch = batch_size - targeted_batch - ohem_batch # 70% uniform random
-
-    best_loss = torch.tensor(float('inf'), device=device)
-    max_error = torch.zeros((), device=device)
-    
-    for epoch in range(epochs):
-        optimizer.zero_grad()
-        
-        # Uniform random batch
-        random_indices = torch.randint(0, 256, (rand_batch, 3), device=device)
-
-        # OHEM batch
-        model.eval()
-        with torch.no_grad():
-            large_pool_indices = torch.randint(0, 256, (65_536, 3), device=device)
-            x_test = large_pool_indices.float() / 255.0
-            truth = dataset_tensor[
-                large_pool_indices[:, 0], 
-                large_pool_indices[:, 1], 
-                large_pool_indices[:, 2]
-            ]
-
-            predictions = model(x_test)
-
-            errors = torch.max(torch.abs(predictions - truth), dim=1).values
-            max_error = errors.max()
-
-            worst_indices = torch.topk(errors, ohem_batch).indices
-            hard_indices = large_pool_indices[worst_indices]
-        model.train()
-
-        # Targeted batch
-        x_targeted = torch.randint(0, 256, (targeted_batch, 1), device=device)
-        y_targeted = torch.randint(0, 256, (targeted_batch, 1), device=device)
-        z_targeted = torch.randint(210, 256, (targeted_batch, 1), device=device)
-        targeted_indices = torch.cat([x_targeted, y_targeted, z_targeted], dim=1)
-
-        combined_indices = torch.cat([random_indices, hard_indices, targeted_indices], dim=0)
-
-        x_train = combined_indices.float() / 255.0
-
-        y_target = dataset_tensor[
-            combined_indices[:, 0], 
-            combined_indices[:, 1], 
-            combined_indices[:, 2]
-        ]
-        
-        y_prediction = model(x_train)
-
-        loss = criterion(y_prediction, y_target)
-        loss.backward()
-
-        nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-
-        optimizer.step()
-        scheduler.step()
-
-        best_loss = torch.minimum(best_loss, loss.detach())
-
-        if epoch % 1000 == 0:
-            print(
-                f"Epoch {epoch} | LR: {optimizer.param_groups[0]['lr']:.2e} | "
-                f"Best Loss: {best_loss.item():.8f} | Max Error: {max_error.item():.4f}"
-            )
-
-    return best_loss.item()
-
-def train_full(model, dataset_tensor):
-    device = dataset_tensor.device
-    epochs = 1_500
-    batch_size = 131_072
-    topk_count = 64
-
-    optimizer = optim.Adam(model.parameters(), lr=3e-3)
+    if pg is None:
+        pg = pigments.Pigments(pigments.load_config_from_json('config.json'))
 
     coords = torch.arange(256, dtype=torch.float32, device=device) / 255.0
     grid_r, grid_g, grid_b = torch.meshgrid(coords, coords, coords, indexing='ij')
     flat_inputs = torch.stack([grid_r, grid_g, grid_b], dim=-1).reshape(-1, 3)
     flat_targets = dataset_tensor.reshape(-1, 3)
-
     num_samples = flat_inputs.shape[0]
-    num_batches = (num_samples + batch_size - 1) // batch_size
 
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs * num_batches)
+    # Precompute forward Kubelka-Munk linear RGB targets across all 256^3 voxels
+    flat_gt_lin = torch.empty_like(flat_targets)
+    with torch.no_grad():
+        for s in range(0, num_samples, 262_144):
+            flat_gt_lin[s:s + 262_144] = _mix_c3_torch(pg, flat_targets[s:s + 262_144])
 
-    best_loss = torch.tensor(float('inf'), device=device)
-    best_max_error = float('inf')
-    best_state_dict = None
+    corner_idx, edge_idx, face_idx, high_z_idx = _build_boundary_indices(device)
 
-    for epoch in range(epochs):
-        permutation = torch.randperm(num_samples, device=device)
-        shuffled_inputs = flat_inputs[permutation]
-        shuffled_targets = flat_targets[permutation]
-        epoch_loss = torch.zeros((), device=device)
-        max_error_sq = torch.zeros((), device=device)
+    w_c = 1.25
+    w_lin = 1.40
+    w_srgb = 0.85
+    w_sum = 4.00
 
-        for start in range(0, num_samples, batch_size):
-            optimizer.zero_grad()
+    optimizer = optim.Adam(model.parameters(), lr=3e-3)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=total_steps, eta_min=1e-5)
 
-            x_train = shuffled_inputs[start:start + batch_size]
-            y_target = shuffled_targets[start:start + batch_size]
+    def mine_subset(pool_size=1_048_576, k_out=8_192):
+        with torch.no_grad():
+            p_idx = torch.cat([
+                torch.randint(0, num_samples, (pool_size,), device=device),
+                corner_idx,
+                edge_idx
+            ], dim=0)
+            xp = flat_inputs[p_idx]
+            yp = flat_targets[p_idx]
+            glin = flat_gt_lin[p_idx]
+            raw = model(xp)
+            pred = torch.clamp(raw, 0.0, 1.0)
+            plin = _mix_c3_torch(pg, pred)
+            ec = torch.abs(pred - yp).max(dim=-1).values
+            elin = torch.abs(plin - glin).max(dim=-1).values
+            esrgb = torch.abs(_oetf_srgb_torch(plin) - _oetf_srgb_torch(glin)).max(dim=-1).values
+            esum = torch.relu(pred.sum(dim=-1) - 1.0)
+            score = torch.maximum(
+                torch.maximum(w_c * ec, w_lin * elin),
+                torch.maximum(w_srgb * esrgb, w_sum * esum)
+            )
+            top = torch.topk(score, k_out).indices
+            return p_idx[top]
 
-            y_prediction = model(x_train)
+    def evaluate_and_mine_full(k_out=8_192):
+        with torch.no_grad():
+            scores = torch.empty(num_samples, dtype=torch.float32, device=device)
+            max_dc = 0.0
+            max_dlin = 0.0
+            max_dsrgb = 0.0
+            max_dsum = 0.0
+            for s in range(0, num_samples, 262_144):
+                e = min(s + 262_144, num_samples)
+                x = flat_inputs[s:e]
+                y = flat_targets[s:e]
+                gl = flat_gt_lin[s:e]
+                pr = torch.clamp(model(x), 0.0, 1.0)
+                pl = _mix_c3_torch(pg, pr)
+                ec = torch.abs(pr - y).max(dim=-1).values
+                el = torch.abs(pl - gl).max(dim=-1).values
+                es = torch.abs(_oetf_srgb_torch(pl) - _oetf_srgb_torch(gl)).max(dim=-1).values
+                esum = torch.relu(pr.sum(dim=-1) - 1.0)
+                max_dc = max(max_dc, ec.max().item())
+                max_dlin = max(max_dlin, el.max().item())
+                max_dsrgb = max(max_dsrgb, es.max().item())
+                max_dsum = max(max_dsum, esum.max().item())
+                scores[s:e] = torch.maximum(
+                    torch.maximum(w_c * ec, w_lin * el),
+                    torch.maximum(w_srgb * es, w_sum * esum)
+                )
+            top_idx = torch.topk(scores, k_out).indices
+            return top_idx, scores.max().item(), max_dc, max_dlin, max_dsrgb, max_dsum
 
-            diff = y_prediction - y_target
-            sq_error = diff * diff
-            mse_loss = torch.mean(sq_error)
-            per_sample_sq_error = torch.max(sq_error, dim=-1).values
-            topk_loss = torch.mean(torch.topk(per_sample_sq_error, k=topk_count).values)
-            l4_loss = torch.mean(sq_error * sq_error)
-            loss = mse_loss + 0.5 * topk_loss + 10.0 * l4_loss
+    model.train()
+    hard_idx = mine_subset(1_048_576, 8_192)
+    best_loss = float('inf')
+    best_global_score = float('inf')
+    best_state_dict = {k: v.detach().clone() for k, v in model.state_dict().items()}
 
-            loss.backward()
+    for step in range(1, total_steps + 1):
+        if step % 500 == 0 and step % 5_000 != 0:
+            hard_idx = mine_subset(1_048_576, 8_192)
 
-            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        i_uni = torch.randint(0, num_samples, (12_288,), device=device)
+        i_face = face_idx[torch.randint(0, face_idx.numel(), (1_536,), device=device)]
+        i_edge = edge_idx[torch.randint(0, edge_idx.numel(), (512,), device=device)]
+        i_hz = high_z_idx[torch.randint(0, high_z_idx.numel(), (1_024,), device=device)]
+        i_hard = hard_idx[torch.randint(0, hard_idx.numel(), (4_904,), device=device)]
+        b_idx = torch.cat([i_uni, i_face, i_edge, i_hz, i_hard, corner_idx], dim=0)
 
-            optimizer.step()
-            scheduler.step()
+        xb = flat_inputs[b_idx]
+        yb = flat_targets[b_idx]
+        glin = flat_gt_lin[b_idx]
 
-            with torch.no_grad():
-                epoch_loss += mse_loss
-                max_error_sq = torch.maximum(max_error_sq, torch.max(per_sample_sq_error))
+        optimizer.zero_grad()
+        raw = model(xb)
+        pred = _ste_clamp_01(raw, yb)
+        plin = _mix_c3_torch(pg, pred)
 
-        current_loss = epoch_loss / num_batches
-        best_loss = torch.minimum(best_loss, current_loss)
+        dc = pred - yb
+        dlin = plin - glin
+        dsrgb = _oetf_srgb_torch(plin) - _oetf_srgb_torch(glin)
+        dsum = torch.relu(pred.sum(dim=-1, keepdim=True) - 1.0)
+        tether = torch.relu(-raw - 0.05) ** 2 + torch.relu(raw - 1.05) ** 2
 
-        epoch_max_error = torch.sqrt(max_error_sq).item()
-        if epoch_max_error < best_max_error:
-            best_max_error = epoch_max_error
-            best_state_dict = {k: v.detach().clone() for k, v in model.state_dict().items()}
+        res = torch.cat([w_c * dc, w_lin * dlin, w_srgb * dsrgb, w_sum * dsum], dim=-1)
+        sq_error = res * res
+        mse_loss = torch.mean(sq_error)
+        per_sample_sq_error = torch.max(sq_error, dim=-1).values
+        topk_loss = torch.mean(torch.topk(per_sample_sq_error, k=64).values)
+        l4_loss = torch.mean(sq_error * sq_error)
+        loss = mse_loss + 0.15 * topk_loss + 12.0 * l4_loss + 1e-3 * torch.mean(tether)
 
-        if epoch % 20 == 0:
+        loss.backward()
+        nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        optimizer.step()
+        scheduler.step()
+
+        best_loss = min(best_loss, mse_loss.item())
+
+        if step == 1 or step % 5_000 == 0 or step == total_steps:
+            hard_idx, g_score, mdc, mdlin, mdsrgb, mdsum = evaluate_and_mine_full(8_192)
+            if g_score < best_global_score:
+                best_global_score = g_score
+                best_state_dict = {k: v.detach().clone() for k, v in model.state_dict().items()}
             print(
-                f"Epoch {epoch} | LR: {optimizer.param_groups[0]['lr']:.2e} | "
-                f"Best MSE: {best_loss.item():.8f} | Max Error: {epoch_max_error:.4f} | "
-                f"Best Max Error: {best_max_error:.4f}"
+                f"Step {step:6,d}/{total_steps:,d} | LR: {optimizer.param_groups[0]['lr']:.2e} | "
+                f"Global Max dC: {mdc:.4f} | Max dLin: {mdlin:.4f} | "
+                f"Max dSRGB: {mdsrgb:.4f} | Max sum-1: {mdsum:.4f} ({time.time() - t0:.1f}s)"
             )
 
-    if best_state_dict is not None:
-        model.load_state_dict(best_state_dict)
+    model.load_state_dict(best_state_dict)
+    return best_loss
 
-    return best_loss.item()
+def train_full(model, dataset_tensor, pg=None):
+    return _train_forward_aware(model, dataset_tensor, pg, total_steps=55_000)
 
 def train(data_config, dataset):
     device = get_device()
     print(f"Using device: {device}")
 
+    torch.manual_seed(42)
     model = PigmentsMLP().to(device)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters())}")
 
+    pg = pigments.Pigments(pigments.load_config_from_json('config.json'))
     dataset_tensor = torch.tensor(dataset, dtype=torch.float32, device=device)
 
-    if data_config.use_ohem:
-        print("Training mode: OHEM")
-        best_loss = train_ohem(model, dataset_tensor)
-    else:
-        print("Training mode: Full dataset")
-        best_loss = train_full(model, dataset_tensor)
+    print("Training mode: Full dataset (forward Kubelka-Munk + concentration minimax)")
+    best_loss = train_full(model, dataset_tensor, pg)
 
-    max_error, mean_error = evaluate_global_accuracy(model, dataset_tensor)
+    max_error, mean_error = evaluate_global_accuracy(model, dataset_tensor, pg)
     print(f"Final Training Loss: {best_loss:.8f}")
-    print(f"Global Max Error: {max_error:.6f} | Global Mean Error: {mean_error:.6f}")
+    print(f"Global Concentration Max Error: {max_error:.6f} | Global Mean Error: {mean_error:.6f}")
 
     export(data_config, model)
 
@@ -320,7 +397,7 @@ def automated_search(dataset_tensor):
                     random_indices[:, 2]
                 ]
 
-                y_pred = model(x_train)
+                y_pred = _ste_clamp_01(model(x_train), y_target)
 
                 loss = criterion(y_pred, y_target)
                 loss.backward()

@@ -5,6 +5,5 @@
     "mix_path_python": "pigments.py",
     "mix_path_kotlin": "../vibrance/src/commonMain/kotlin/dev/romainguy/vibrance/Vibrance.kt",
     "mix_path_glsl": "../vibrance-compose/src/commonMain/kotlin/dev/romainguy/vibrance/compose/shaders.kt",
-    "lut_path_npy": "data/pigments_lut_256_fp16.npy",
-    "use_ohem": false
+    "lut_path_npy": "data/pigments_lut_256_fp16.npy"
 }

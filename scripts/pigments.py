@@ -23,8 +23,7 @@ class DataConfig:
         lut_path_npy,
         mix_path_python,
         mix_path_kotlin,
-        mix_path_glsl,
-        use_ohem
+        mix_path_glsl
     ):
         self.model_path_onnx = model_path_onnx
         self.model_path_json = model_path_json
@@ -33,7 +32,6 @@ class DataConfig:
         self.mix_path_kotlin = mix_path_kotlin
         self.mix_path_glsl = mix_path_glsl
         self.lut_path_npy = lut_path_npy
-        self.use_ohem = use_ohem
 
 class PigmentsConfig:
     def __init__(
@@ -119,6 +117,17 @@ class Pigments():
         self.XYZ_CMF_D65 = torch.tensor(
             self.normalized_observer_D65, dtype=torch.float32, device=self.device).T
         self.L = torch.tensor(self.wavelengths, dtype=torch.float32, device=self.device)
+
+        dL = self.L[1:] - self.L[:-1]
+        trap_w = torch.zeros_like(self.L)
+        trap_w[:-1] += 0.5 * dL
+        trap_w[1:] += 0.5 * dL
+        M_XYZ_to_sRGB = torch.tensor([
+            [ 3.2404542, -1.5371385, -0.4985314],
+            [-0.9692660,  1.8760108,  0.0415560],
+            [ 0.0556434, -0.2040259,  1.0572252]
+        ], dtype=torch.float32, device=self.device)
+        self.W_XYZ_to_sRGB = (self.XYZ_CMF_D65 * trap_w.unsqueeze(-1)) @ M_XYZ_to_sRGB.T
 
     def __loadPigmentData(self):
         # Absorption (K) and scattering (S) coefficients from 380nm to 730nm
@@ -284,22 +293,143 @@ class Pigments():
             max(0.0, min(1.0, b))
         ]
 
-    def unmix_torch(self, target_rgb_tensor, steps=500, lr=0.05):
+    @staticmethod
+    def _project_simplex(v):
+        u, _ = torch.sort(v, dim=-1, descending=True)
+        cssv = torch.cumsum(u, dim=-1) - 1.0
+        ind = torch.arange(1, v.shape[-1] + 1, device=v.device, dtype=v.dtype)
+        rho = (u - cssv / ind > 0).sum(dim=-1, keepdim=True)
+        theta = torch.gather(cssv, -1, rho - 1) / rho.to(v.dtype)
+        return torch.clamp(v - theta, min=0.0)
+
+    @torch.no_grad()
+    def _mix_val_and_grad(self, c, target):
+        K = self.P_star_K.to(device=c.device, dtype=c.dtype)
+        S = self.P_star_S.to(device=c.device, dtype=c.dtype)
+        W_rgb = self.W_XYZ_to_sRGB.to(device=c.device, dtype=c.dtype)
+
+        K_mix = torch.clamp(c @ K, min=0.0)
+        S_mix = torch.clamp(c @ S, min=1e-7)
+        invS = 1.0 / S_mix
+        u = K_mix * invS
+        a = 1.0 + u
+        b = torch.sqrt(u * (u + 2.0) + 1e-12)
+        R_inf = 1.0 / (a + b)
+
+        if not self.config.use_substrate:
+            R_mix = R_inf
+            dRmix_du = -R_inf / b
+            dRmix_dS = torch.zeros_like(u)
+        else:
+            X = self.config.paint_thickness
+            Rg = self.config.canvas_reflectance
+            SX = S_mix * X
+            bSX = b * SX
+            small = bSX < 1e-3
+            safe = torch.clamp(bSX, min=1e-3, max=20.0)
+            e2 = torch.exp(-2.0 * safe)
+            om_e2 = 1.0 - e2
+            coth_s = (1.0 + e2) / om_e2
+            xcoth = torch.where(small, 1.0 + (bSX * bSX) / 3.0, safe * coth_s)
+            d_xcoth = torch.where(
+                small,
+                (2.0 / 3.0) * bSX,
+                coth_s - safe * (4.0 * e2) / (om_e2 * om_e2)
+            )
+            invSX = 1.0 / SX
+            bcoth = xcoth * invSX
+
+            num = 1.0 - Rg * (a - bcoth)
+            den = a - Rg + bcoth
+            inv_den = 1.0 / den
+            R_raw = num * inv_den
+            R_sub = torch.clamp(R_raw, 0.0, 1.0)
+            big = bSX > 20.0
+            R_mix = torch.where(big, R_inf, R_sub)
+
+            in_01 = (R_raw >= 0.0).to(c.dtype) * (R_raw <= 1.0).to(c.dtype)
+            inv_den2 = inv_den * inv_den
+            dRsub_da = in_01 * (-Rg * den - num) * inv_den2
+            dRsub_dbc = in_01 * (Rg * den - num) * inv_den2
+            dRsub_du = dRsub_da + dRsub_dbc * (d_xcoth * (a / b))
+            dRsub_dS = dRsub_dbc * (d_xcoth * bSX - xcoth) * (invS * invSX)
+            dRmix_du = torch.where(big, -R_inf / b, dRsub_du)
+            dRmix_dS = torch.where(big, torch.zeros_like(dRsub_dS), dRsub_dS)
+
+        c_s = (1.0 - self.K1) * (1.0 - self.K2)
+        om = 1.0 - self.K2 * R_mix
+        R = c_s * R_mix / om
+        rgb_raw = R @ W_rgb
+        rgb = torch.clamp(rgb_raw, 0.0, 1.0)
+
+        diff = rgb - target
+        loss = 0.5 * torch.sum(diff * diff, dim=-1)
+        d_rgb = diff * (rgb_raw >= 0.0).to(c.dtype) * (rgb_raw <= 1.0).to(c.dtype)
+        d_Rmix = (d_rgb @ W_rgb.T) * (c_s / (om * om))
+
+        d_Kmix = d_Rmix * dRmix_du * invS
+        d_Smix = d_Rmix * (-dRmix_du * u * invS + dRmix_dS)
+        grad_c = (d_Kmix @ K.T) + (d_Smix @ S.T)
+        return loss, grad_c
+
+    @torch.no_grad()
+    def polish_unmix_simplex(self, c_init, target_rgb_tensor, steps=20):
+        spatial_shape = target_rgb_tensor.shape[:-1]
+        c = self._project_simplex(c_init.reshape(-1, 4))
+        target = target_rgb_tensor.reshape(-1, 3)
+
+        loss, g = self._mix_val_and_grad(c, target)
+        alpha = torch.full((c.shape[0], 1), 0.15, device=c.device, dtype=c.dtype)
+        c_prev = c.clone()
+        g_prev = g.clone()
+
+        for step in range(steps):
+            if step > 0:
+                active = torch.clamp((c > 1e-7).to(c.dtype) + (c_prev > 1e-7).to(c.dtype), max=1.0)
+                s = (c - c_prev) * active
+                n_act = torch.clamp(active.sum(dim=-1, keepdim=True), min=1.0)
+                y_raw = (g - g_prev) * active
+                y = y_raw - (y_raw.sum(dim=-1, keepdim=True) / n_act) * active
+                sy = torch.sum(s * y, dim=-1, keepdim=True)
+                ss = torch.sum(s * s, dim=-1, keepdim=True)
+                yy = torch.sum(y * y, dim=-1, keepdim=True)
+                bb = ss / torch.clamp(sy, min=1e-12) if (step % 2 == 0) else sy / torch.clamp(yy, min=1e-12)
+                alpha = torch.where(sy > 1e-12, torch.clamp(bb, 1e-4, 20.0), alpha * 0.5)
+
+            c_cand = self._project_simplex(c - alpha * g)
+            loss_cand, g_cand = self._mix_val_and_grad(c_cand, target)
+            improved = loss_cand <= loss
+            m_imp = improved.unsqueeze(-1)
+            c_prev = torch.where(m_imp, c, c_prev)
+            g_prev = torch.where(m_imp, g, g_prev)
+            c = torch.where(m_imp, c_cand, c)
+            g = torch.where(m_imp, g_cand, g)
+            loss = torch.where(improved, loss_cand, loss)
+            alpha = torch.where(m_imp, alpha, torch.clamp(alpha * 0.25, min=1e-5))
+
+        return c.reshape(*spatial_shape, 4)
+
+    def unmix_torch(self, target_rgb_tensor, steps=500, lr=0.05, polish_steps=25):
         device = target_rgb_tensor.device
         spatial_shape = target_rgb_tensor.shape[:-1] 
         c_raw = torch.zeros((*spatial_shape, 4), device=device, requires_grad=True)
         
         optimizer = torch.optim.Adam([c_raw], lr=lr)
+        K = self.P_star_K.to(device=device, dtype=target_rgb_tensor.dtype)
+        S = self.P_star_S.to(device=device, dtype=target_rgb_tensor.dtype)
         
         for _ in range(steps):
             optimizer.zero_grad()
             c_valid = torch.nn.functional.softmax(c_raw, dim=-1)
-            predicted_rgb = self.mix_torch(c_valid, self.P_star_K, self.P_star_S)
+            predicted_rgb = torch.clamp(self.mix_torch(c_valid, K, S), 0.0, 1.0)
             loss = torch.nn.functional.mse_loss(predicted_rgb, target_rgb_tensor)
             loss.backward()
             optimizer.step()
             
-        return torch.nn.functional.softmax(c_raw, dim=-1).detach()
+        c_init = torch.nn.functional.softmax(c_raw, dim=-1).detach()
+        if polish_steps > 0:
+            return self.polish_unmix_simplex(c_init, target_rgb_tensor, steps=polish_steps)
+        return c_init
 
     def unmix(self, target_rgb):
         c0 = np.array([0.25, 0.25, 0.25, 0.25])
@@ -364,33 +494,40 @@ class Pigments():
 
     def mix_torch(self, concentrations, K, S):
         # Kubelka-Munk Mixing
-        K_mix = torch.matmul(concentrations, K)
-        S_mix = torch.matmul(concentrations, S)
+        K_mix = torch.clamp(torch.matmul(concentrations, K), min=0.0)
+        S_mix = torch.clamp(torch.matmul(concentrations, S), min=1e-7)
 
         if not self.config.use_substrate:
-            # Safe division: add 1e-7 to avoid dividing by 0 if S_mix becomes 0
-            KSmix = torch.abs(K_mix) / (torch.abs(S_mix) + 1e-7)
+            # Safe division: S_mix is clamped >= 1e-7
+            KSmix = K_mix / S_mix
             # We add 1e-12 inside the root to ensure gradients remain stable
-            inside_root = (KSmix ** 2) + (2.0 * KSmix) + 1e-12
-            R_mix = 1.0 + KSmix - torch.sqrt(inside_root)
+            b = torch.sqrt((KSmix ** 2) + (2.0 * KSmix) + 1e-12)
+            R_mix = 1.0 / (1.0 + KSmix + b)
         else:
             # Substrate-aware mixing:
-            a = 1.0 + (K_mix / (S_mix + 1e-7))
-            b = torch.sqrt(torch.clip(a * a - 1.0, 1e-12, None))
+            u = K_mix / S_mix
+            a = 1.0 + u
+            b = torch.sqrt(u * (u + 2.0) + 1e-12)
 
-            bSX = b * S_mix * self.config.paint_thickness
-            safe_bSX = torch.clip(bSX, max=20.0)
+            SX = S_mix * self.config.paint_thickness
+            bSX = b * SX
+            safe_bSX = torch.clamp(bSX, min=1e-3, max=20.0)
+            e2 = torch.exp(-2.0 * safe_bSX)
+            xcoth = torch.where(
+                bSX < 1e-3,
+                1.0 + (bSX * bSX) / 3.0,
+                safe_bSX * (1.0 + e2) / (1.0 - e2)
+            )
+            bcoth = xcoth / SX
 
-            coth = torch.cosh(safe_bSX) / (torch.sinh(safe_bSX) + 1e-7)
+            num = 1.0 - self.config.canvas_reflectance * (a - bcoth)
+            den = a - self.config.canvas_reflectance + bcoth
 
-            num = 1.0 - self.config.canvas_reflectance * (a - b * coth)
-            den = a - self.config.canvas_reflectance + b * coth
-
-            mask = bSX > 20
+            mask = bSX > 20.0
             R_mix = torch.where(
                 mask,
-                a - b,
-                torch.clip(num / (den + 1e-7), 0.0, 1.0)
+                1.0 / (a + b),
+                torch.clamp(num / den, 0.0, 1.0)
             )
 
         # Saunderson Correction
@@ -399,16 +536,8 @@ class Pigments():
         R = numerator / denominator
 
         # Integration and conversion to sRGB
-        integrand = R.unsqueeze(-1) * self.XYZ_CMF_D65
-        XYZ = torch.trapezoid(integrand, x=self.L, dim=-2)
-
-        M_XYZ_to_sRGB = torch.tensor([
-            [ 3.2404542, -1.5371385, -0.4985314],
-            [-0.9692660,  1.8760108,  0.0415560],
-            [ 0.0556434, -0.2040259,  1.0572252]
-        ], dtype=torch.float32, device=concentrations.device)
-
-        linear_rgb = torch.matmul(XYZ, M_XYZ_to_sRGB.T)
+        W_rgb = self.W_XYZ_to_sRGB.to(device=concentrations.device, dtype=concentrations.dtype)
+        linear_rgb = torch.matmul(R, W_rgb)
         
         # Mask out negaative values to keep pow differentiable
         # nan_mask = linear_rgb < 0.0
