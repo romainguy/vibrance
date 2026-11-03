@@ -29,10 +29,10 @@ Add the following to your `build.gradle.kts`:
 ```kotlin
 dependencies {
     // For core color mixing logic
-    implementation("dev.romainguy:vibrance:0.2.0")
+    implementation("dev.romainguy:vibrance:0.3.0")
 
     // For Compose APIs
-    implementation("dev.romainguy:vibrance-compose:0.2.0")
+    implementation("dev.romainguy:vibrance-compose:0.3.0")
 }
 ```
 
