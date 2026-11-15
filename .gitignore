@@ -17,3 +17,4 @@
 local.properties
 .cxx
 .DS_Store
+/website/dist
