@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Vibrance is a Kotlin and Compose Multiplatform library that mixes sRGB colors as physical paint pigments.">
+  <title>Vibrance — Paint-like color mixing for Kotlin &amp; Compose</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2318181b'/%3E%3Ccircle cx='11.5' cy='11.5' r='5.5' fill='%23ffe600'/%3E%3Ccircle cx='20.5' cy='11.5' r='5.5' fill='%23e6007e'/%3E%3Ccircle cx='11.5' cy='20.5' r='5.5' fill='%231f9d55'/%3E%3Ccircle cx='20.5' cy='20.5' r='5.5' fill='%230057ff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/styles.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-title">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <svg class="brand-mark" width="24" height="24" viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="7" fill="currentColor" fill-opacity="0.08"/>
+          <circle cx="11.5" cy="11.5" r="5.2" fill="#ffe600"/>
+          <circle cx="20.5" cy="11.5" r="5.2" fill="#e6007e"/>
+          <circle cx="11.5" cy="20.5" r="5.2" fill="#1f9d55"/>
+          <circle cx="20.5" cy="20.5" r="5.2" fill="#0057ff"/>
+        </svg>
+        <span class="brand-name">Vibrance</span>
+        <span class="version-badge">v0.3.0</span>
+      </div>
+
+      <nav aria-label="Primary">
+        <ul class="nav-list">
+          <li><a href="#playground">Playground</a></li>
+          <li><a href="#examples">Examples</a></li>
+          <li><a href="#usage">Kotlin Usage</a></li>
+          <li>
+            <a href="https://github.com/romainguy/vibrance" class="github-link">
+              GitHub
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M5 11L11 5M6 5h5v5"/>
+              </svg>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero section">
+      <div class="container">
+        <h1 id="main-title" tabindex="-1">Subtractive color mixing for Kotlin and Compose</h1>
+        <p class="lead">
+          Standard RGB interpolation mixes light channels linearly, so complementary pairs such as yellow and blue pass through neutral gray. Vibrance converts sRGB colors into a latent space of real-world paint pigment concentrations, mixes those concentrations, and converts the result back to sRGB.
+        </p>
+
+        <dl class="facts-grid">
+          <div class="fact-item">
+            <dt>Latent pigment space</dt>
+            <dd>
+              Models Phthalo Blue (Green Shade), Quinacridone Magenta, Hansa Yellow, and Titanium White concentrations plus an RGB remainder so every input sRGB color round-trips accurately.
+            </dd>
+          </div>
+          <div class="fact-item">
+            <dt>Kotlin Multiplatform</dt>
+            <dd>
+              Runs on Android, JVM, iOS, macOS, JS, and Wasm. The core module has zero UI dependencies and supports allocation-free mixing in tight loops.
+            </dd>
+          </div>
+          <div class="fact-item">
+            <dt>Compose shaders</dt>
+            <dd>
+              Provides vertical, horizontal, linear, radial, and sweep gradient modifiers and brushes backed by runtime shaders with triangle-noise dithering.
+            </dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section id="playground" class="section section-bordered" aria-labelledby="playground-heading">
+      <div class="container">
+        <div class="section-header">
+          <h2 id="playground-heading">Interactive gradient</h2>
+          <p>
+            Choose start and end colors or select a preset below. Both canvases are rendered directly in JavaScript using a port of the Vibrance neural pigment model and shader dithering pass.
+          </p>
+        </div>
+
+        <div class="playground-shell">
+          <form id="playground-form" class="playground-controls" novalidate>
+            <div class="color-endpoints">
+              <div class="endpoint-group">
+                <label class="control-label" for="start-hex">Start color</label>
+                <div class="color-input-row">
+                  <input
+                    type="color"
+                    id="start-picker"
+                    class="color-picker-input"
+                    value="#ffff00"
+                    aria-label="Start color picker"
+                  >
+                  <input
+                    type="text"
+                    id="start-hex"
+                    class="hex-input"
+                    value="#FFFF00"
+                    maxlength="7"
+                    autocorrect="off"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    aria-describedby="start-hex-error"
+                  >
+                </div>
+                <p id="start-hex-error" class="field-error" aria-live="polite" hidden></p>
+              </div>
+
+              <button type="button" id="swap-colors" class="swap-button" aria-label="Swap start and end colors">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 5h10M10 2l3 3-3 3M13 11H3M6 8l-3 3 3 3"/>
+                </svg>
+                <span>Swap</span>
+              </button>
+
+              <div class="endpoint-group">
+                <label class="control-label" for="end-hex">End color</label>
+                <div class="color-input-row">
+                  <input
+                    type="color"
+                    id="end-picker"
+                    class="color-picker-input"
+                    value="#0000ff"
+                    aria-label="End color picker"
+                  >
+                  <input
+                    type="text"
+                    id="end-hex"
+                    class="hex-input"
+                    value="#0000FF"
+                    maxlength="7"
+                    autocorrect="off"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    aria-describedby="end-hex-error"
+                  >
+                </div>
+                <p id="end-hex-error" class="field-error" aria-live="polite" hidden></p>
+              </div>
+            </div>
+
+            <fieldset class="geometry-fieldset">
+              <legend class="control-label">Geometry</legend>
+              <div class="geometry-options">
+                <label class="geometry-option">
+                  <input type="radio" name="geometry" value="linear" checked>
+                  <span>Linear</span>
+                </label>
+                <label class="geometry-option">
+                  <input type="radio" name="geometry" value="radial">
+                  <span>Radial</span>
+                </label>
+                <label class="geometry-option">
+                  <input type="radio" name="geometry" value="sweep">
+                  <span>Sweep</span>
+                </label>
+              </div>
+            </fieldset>
+          </form>
+
+          <div class="presets-bar" role="group" aria-label="Color pair presets">
+            <span class="presets-label">Presets</span>
+            <div class="presets-list">
+              <button type="button" class="preset-chip" data-start="#FFFF00" data-end="#0000FF" aria-pressed="true">
+                <span class="preset-dots" aria-hidden="true">
+                  <span class="color-swatch" style="background:#FFFF00"></span>
+                  <span class="color-swatch" style="background:#0000FF"></span>
+                </span>
+                Yellow &rarr; Blue
+              </button>
+              <button type="button" class="preset-chip" data-start="#FFFF00" data-end="#FF0000" aria-pressed="false">
+                <span class="preset-dots" aria-hidden="true">
+                  <span class="color-swatch" style="background:#FFFF00"></span>
+                  <span class="color-swatch" style="background:#FF0000"></span>
+                </span>
+                Yellow &rarr; Red
+              </button>
+              <button type="button" class="preset-chip" data-start="#FFFFFF" data-end="#0000FF" aria-pressed="false">
+                <span class="preset-dots" aria-hidden="true">
+                  <span class="color-swatch" style="background:#FFFFFF"></span>
+                  <span class="color-swatch" style="background:#0000FF"></span>
+                </span>
+                White &rarr; Blue
+              </button>
+              <button type="button" class="preset-chip" data-start="#00FFFF" data-end="#FF00FF" aria-pressed="false">
+                <span class="preset-dots" aria-hidden="true">
+                  <span class="color-swatch" style="background:#00FFFF"></span>
+                  <span class="color-swatch" style="background:#FF00FF"></span>
+                </span>
+                Cyan &rarr; Magenta
+              </button>
+              <button type="button" class="preset-chip" data-start="#FF00FF" data-end="#FFFF00" aria-pressed="false">
+                <span class="preset-dots" aria-hidden="true">
+                  <span class="color-swatch" style="background:#FF00FF"></span>
+                  <span class="color-swatch" style="background:#FFFF00"></span>
+                </span>
+                Magenta &rarr; Yellow
+              </button>
+              <button type="button" class="preset-chip" data-start="#FF0000" data-end="#00FF00" aria-pressed="false">
+                <span class="preset-dots" aria-hidden="true">
+                  <span class="color-swatch" style="background:#FF0000"></span>
+                  <span class="color-swatch" style="background:#00FF00"></span>
+                </span>
+                Red &rarr; Green
+              </button>
+            </div>
+          </div>
+
+          <div class="playground-stage">
+            <figure class="stage-panel">
+              <figcaption class="stage-caption">
+                <span class="stage-title">Vibrance</span>
+                <span class="midpoint-readout">
+                  <span id="vibrance-mid-swatch" class="color-swatch" aria-hidden="true"></span>
+                  <span>50%: <code id="vibrance-mid-hex">#1F9397</code></span>
+                </span>
+              </figcaption>
+              <canvas
+                id="playground-vibrance"
+                class="gradient-canvas stage-canvas"
+                role="img"
+                aria-label="Vibrance pigment-mixed gradient from #FFFF00 to #0000FF"
+              ></canvas>
+            </figure>
+
+            <figure class="stage-panel">
+              <figcaption class="stage-caption">
+                <span class="stage-title">Standard sRGB</span>
+                <span class="midpoint-readout">
+                  <span id="srgb-mid-swatch" class="color-swatch" aria-hidden="true"></span>
+                  <span>50%: <code id="srgb-mid-hex">#808080</code></span>
+                </span>
+              </figcaption>
+              <canvas
+                id="playground-srgb"
+                class="gradient-canvas stage-canvas"
+                role="img"
+                aria-label="Standard sRGB linear gradient from #FFFF00 to #0000FF"
+              ></canvas>
+            </figure>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="examples" class="section section-bordered" aria-labelledby="examples-heading">
+      <div class="container">
+        <div class="section-header">
+          <h2 id="examples-heading">Static gradient examples</h2>
+          <p>
+            Representative color pairs across linear, radial, and sweep geometries. Each example pairs Vibrance with standard sRGB interpolation for the same endpoints.
+          </p>
+        </div>
+
+        <div class="examples-grid">
+          <article class="example-card">
+            <div class="example-header">
+              <div>
+                <h3>Yellow to Blue</h3>
+                <p class="example-meta"><code>#FFFF00</code> &rarr; <code>#0000FF</code> &middot; Linear</p>
+              </div>
+              <button
+                type="button"
+                class="inspect-button"
+                data-load-start="#FFFF00"
+                data-load-end="#0000FF"
+                data-load-geometry="linear"
+                aria-label="Load Yellow to Blue linear gradient in playground"
+              >Inspect</button>
+            </div>
+            <div class="example-canvases" data-example data-start="#FFFF00" data-end="#0000FF" data-geometry="linear">
+              <div class="example-band">
+                <span class="band-tag">Vibrance</span>
+                <canvas class="gradient-canvas example-canvas" data-role="vibrance" role="img" aria-label="Vibrance linear gradient from Yellow to Blue"></canvas>
+              </div>
+              <div class="example-band">
+                <span class="band-tag">Standard sRGB</span>
+                <canvas class="gradient-canvas example-canvas" data-role="srgb" role="img" aria-label="Standard sRGB linear gradient from Yellow to Blue"></canvas>
+              </div>
+            </div>
+            <p class="example-note">
+              Hansa Yellow and Phthalo Blue transition through green and teal instead of collapsing to neutral gray at the midpoint.
+            </p>
+          </article>
+
+          <article class="example-card">
+            <div class="example-header">
+              <div>
+                <h3>Yellow to Red</h3>
+                <p class="example-meta"><code>#FFFF00</code> &rarr; <code>#FF0000</code> &middot; Linear</p>
+              </div>
+              <button
+                type="button"
+                class="inspect-button"
+                data-load-start="#FFFF00"
+                data-load-end="#FF0000"
+                data-load-geometry="linear"
+                aria-label="Load Yellow to Red linear gradient in playground"
+              >Inspect</button>
+            </div>
+            <div class="example-canvases" data-example data-start="#FFFF00" data-end="#FF0000" data-geometry="linear">
+              <div class="example-band">
+                <span class="band-tag">Vibrance</span>
+                <canvas class="gradient-canvas example-canvas" data-role="vibrance" role="img" aria-label="Vibrance linear gradient from Yellow to Red"></canvas>
+              </div>
+              <div class="example-band">
+                <span class="band-tag">Standard sRGB</span>
+                <canvas class="gradient-canvas example-canvas" data-role="srgb" role="img" aria-label="Standard sRGB linear gradient from Yellow to Red"></canvas>
+              </div>
+            </div>
+            <p class="example-note">
+              Pigment interpolation preserves chroma through warm cadmium-like oranges rather than dimming in the middle of the ramp.
+            </p>
+          </article>
+
+          <article class="example-card">
+            <div class="example-header">
+              <div>
+                <h3>White to Blue</h3>
+                <p class="example-meta"><code>#FFFFFF</code> &rarr; <code>#0000FF</code> &middot; Linear</p>
+              </div>
+              <button
+                type="button"
+                class="inspect-button"
+                data-load-start="#FFFFFF"
+                data-load-end="#0000FF"
+                data-load-geometry="linear"
+                aria-label="Load White to Blue linear gradient in playground"
+              >Inspect</button>
+            </div>
+            <div class="example-canvases" data-example data-start="#FFFFFF" data-end="#0000FF" data-geometry="linear">
+              <div class="example-band">
+                <span class="band-tag">Vibrance</span>
+                <canvas class="gradient-canvas example-canvas" data-role="vibrance" role="img" aria-label="Vibrance linear gradient from White to Blue"></canvas>
+              </div>
+              <div class="example-band">
+                <span class="band-tag">Standard sRGB</span>
+                <canvas class="gradient-canvas example-canvas" data-role="srgb" role="img" aria-label="Standard sRGB linear gradient from White to Blue"></canvas>
+              </div>
+            </div>
+            <p class="example-note">
+              Diluting Phthalo Blue with Titanium White produces cool cerulean tints instead of a chalky periwinkle ramp.
+            </p>
+          </article>
+
+          <article class="example-card">
+            <div class="example-header">
+              <div>
+                <h3>Cyan to Magenta</h3>
+                <p class="example-meta"><code>#00FFFF</code> &rarr; <code>#FF00FF</code> &middot; Linear</p>
+              </div>
+              <button
+                type="button"
+                class="inspect-button"
+                data-load-start="#00FFFF"
+                data-load-end="#FF00FF"
+                data-load-geometry="linear"
+                aria-label="Load Cyan to Magenta linear gradient in playground"
+              >Inspect</button>
+            </div>
+            <div class="example-canvases" data-example data-start="#00FFFF" data-end="#FF00FF" data-geometry="linear">
+              <div class="example-band">
+                <span class="band-tag">Vibrance</span>
+                <canvas class="gradient-canvas example-canvas" data-role="vibrance" role="img" aria-label="Vibrance linear gradient from Cyan to Magenta"></canvas>
+              </div>
+              <div class="example-band">
+                <span class="band-tag">Standard sRGB</span>
+                <canvas class="gradient-canvas example-canvas" data-role="srgb" role="img" aria-label="Standard sRGB linear gradient from Cyan to Magenta"></canvas>
+              </div>
+            </div>
+            <p class="example-note">
+              Subtractive mixing routes Cyan and Quinacridone Magenta through saturated cobalt and violet tones rather than pale lavender.
+            </p>
+          </article>
+
+          <article class="example-card">
+            <div class="example-header">
+              <div>
+                <h3>Magenta to Yellow</h3>
+                <p class="example-meta"><code>#FF00FF</code> &rarr; <code>#FFFF00</code> &middot; Radial</p>
+              </div>
+              <button
+                type="button"
+                class="inspect-button"
+                data-load-start="#FF00FF"
+                data-load-end="#FFFF00"
+                data-load-geometry="radial"
+                aria-label="Load Magenta to Yellow radial gradient in playground"
+              >Inspect</button>
+            </div>
+            <div class="example-canvases example-canvases-2d" data-example data-start="#FF00FF" data-end="#FFFF00" data-geometry="radial">
+              <div class="example-band">
+                <span class="band-tag">Vibrance</span>
+                <canvas class="gradient-canvas example-canvas-2d" data-role="vibrance" role="img" aria-label="Vibrance radial gradient from Magenta to Yellow"></canvas>
+              </div>
+              <div class="example-band">
+                <span class="band-tag">Standard sRGB</span>
+                <canvas class="gradient-canvas example-canvas-2d" data-role="srgb" role="img" aria-label="Standard sRGB radial gradient from Magenta to Yellow"></canvas>
+              </div>
+            </div>
+            <p class="example-note">
+              Radial falloff from Quinacridone Magenta to Hansa Yellow moves through scarlet and orange instead of salmon pink.
+            </p>
+          </article>
+
+          <article class="example-card">
+            <div class="example-header">
+              <div>
+                <h3>Yellow to Blue</h3>
+                <p class="example-meta"><code>#FFFF00</code> &rarr; <code>#0000FF</code> &middot; Sweep</p>
+              </div>
+              <button
+                type="button"
+                class="inspect-button"
+                data-load-start="#FFFF00"
+                data-load-end="#0000FF"
+                data-load-geometry="sweep"
+                aria-label="Load Yellow to Blue sweep gradient in playground"
+              >Inspect</button>
+            </div>
+            <div class="example-canvases example-canvases-2d" data-example data-start="#FFFF00" data-end="#0000FF" data-geometry="sweep">
+              <div class="example-band">
+                <span class="band-tag">Vibrance</span>
+                <canvas class="gradient-canvas example-canvas-2d" data-role="vibrance" role="img" aria-label="Vibrance sweep gradient from Yellow to Blue"></canvas>
+              </div>
+              <div class="example-band">
+                <span class="band-tag">Standard sRGB</span>
+                <canvas class="gradient-canvas example-canvas-2d" data-role="srgb" role="img" aria-label="Standard sRGB sweep gradient from Yellow to Blue"></canvas>
+              </div>
+            </div>
+            <p class="example-note">
+              Angular interpolation around the center point preserves hue progression across the full 360&deg; sweep.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="usage" class="section section-bordered" aria-labelledby="usage-heading">
+      <div class="container">
+        <div class="section-header">
+          <h2 id="usage-heading">Using Vibrance in Kotlin</h2>
+          <p>
+            Vibrance is published on Maven Central as two artifacts: <code>vibrance</code> for standalone color mixing and <code>vibrance-compose</code> for Jetpack Compose and Compose Multiplatform integration.
+          </p>
+        </div>
+
+        <div class="usage-blocks">
+          <div class="usage-step">
+            <div class="usage-prose">
+              <h3 id="heading-gradle">1. Add the dependencies</h3>
+              <p>
+                Add <code>vibrance</code> for core sRGB and latent pigment mixing, and <code>vibrance-compose</code> if you are rendering gradients in Compose.
+              </p>
+              <p class="platform-note">
+                <strong>Android API requirement:</strong> <code>vibrance-compose</code> modifiers and brushes require Android API level 33+ (<code>RuntimeShader</code>). Desktop, iOS, macOS, JS, and Wasm targets use Skia <code>RuntimeEffect</code>. The core <code>vibrance</code> module has no minimum API restriction.
+              </p>
+            </div>
+
+            <div class="code-card">
+              <div class="code-header">
+                <span class="code-filename">build.gradle.kts</span>
+                <span class="copy">
+                  <button type="button" class="copy-button" command="--copy" commandfor="code-gradle" aria-label="Copy Gradle dependencies">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/>
+                      <path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/>
+                    </svg>
+                    <span>Copy</span>
+                  </button>
+                  <span class="tip" role="status"></span>
+                </span>
+              </div>
+              <pre id="code-gradle" role="region" aria-labelledby="heading-gradle" tabindex="0"><code><span class="tok-fn">dependencies</span> {
+    <span class="tok-cm">// Core pigment mixing (Android, JVM, iOS, macOS, JS, Wasm)</span>
+    <span class="tok-fn">implementation</span>(<span class="tok-str">"dev.romainguy:vibrance:0.3.0"</span>)
+
+    <span class="tok-cm">// Compose modifiers, brushes, and Color extensions</span>
+    <span class="tok-fn">implementation</span>(<span class="tok-str">"dev.romainguy:vibrance-compose:0.3.0"</span>)
+}</code></pre>
+            </div>
+          </div>
+
+          <div class="usage-step">
+            <div class="usage-prose">
+              <h3 id="heading-core">2. Mix colors with the core library</h3>
+              <p>
+                Create an instance of <code>Vibrance</code> to mix sRGB channels in the <code>0.0f..1.0f</code> range. Note that <code>Vibrance</code> reuses internal scratch buffers and is not thread-safe; keep one instance per thread.
+              </p>
+              <p>
+                Upscaling an sRGB color into the latent space runs a small neural network and is the main cost of a mix. When interpolating between the same pair of colors repeatedly—such as during an animation—precompute both 6-float latent arrays once with <code>colorToLatentColor</code> and interpolate them with <code>latentColorsMix</code>. You can also pass your own <code>FloatArray</code> buffers to avoid allocations.
+              </p>
+            </div>
+
+            <div class="code-card">
+              <div class="code-header">
+                <span class="code-filename">ColorMixing.kt</span>
+                <span class="copy">
+                  <button type="button" class="copy-button" command="--copy" commandfor="code-core" aria-label="Copy core Kotlin mixing example">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/>
+                      <path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/>
+                    </svg>
+                    <span>Copy</span>
+                  </button>
+                  <span class="tip" role="status"></span>
+                </span>
+              </div>
+              <pre id="code-core" role="region" aria-labelledby="heading-core" tabindex="0"><code><span class="tok-kw">import</span> dev.romainguy.vibrance.Vibrance
+
+<span class="tok-kw">val</span> vibrance = <span class="tok-fn">Vibrance</span>()
+
+<span class="tok-cm">// Direct one-off mix between Yellow (1, 1, 0) and Blue (0, 0, 1)</span>
+<span class="tok-kw">val</span> mixed: FloatArray = vibrance.<span class="tok-fn">colorsMix</span>(
+    srcR = <span class="tok-num">1.0f</span>, srcG = <span class="tok-num">1.0f</span>, srcB = <span class="tok-num">0.0f</span>,
+    dstR = <span class="tok-num">0.0f</span>, dstG = <span class="tok-num">0.0f</span>, dstB = <span class="tok-num">1.0f</span>,
+    amount = <span class="tok-num">0.25f</span>
+)
+
+<span class="tok-cm">// Repeated interpolation: precompute 6-float latent colors once</span>
+<span class="tok-kw">val</span> latentYellow = FloatArray(<span class="tok-num">6</span>)
+<span class="tok-kw">val</span> latentBlue = FloatArray(<span class="tok-num">6</span>)
+vibrance.<span class="tok-fn">colorToLatentColor</span>(<span class="tok-num">1.0f</span>, <span class="tok-num">1.0f</span>, <span class="tok-num">0.0f</span>, latentYellow)
+vibrance.<span class="tok-fn">colorToLatentColor</span>(<span class="tok-num">0.0f</span>, <span class="tok-num">0.0f</span>, <span class="tok-num">1.0f</span>, latentBlue)
+
+<span class="tok-cm">// Reuse an output FloatArray(3) for allocation-free per-frame mixing</span>
+<span class="tok-kw">val</span> outRgb = FloatArray(<span class="tok-num">3</span>)
+vibrance.<span class="tok-fn">latentColorsMix</span>(latentYellow, latentBlue, amount = <span class="tok-num">0.25f</span>, color = outRgb)</code></pre>
+            </div>
+          </div>
+
+          <div class="usage-step">
+            <div class="usage-prose">
+              <h3 id="heading-modifiers">3. Apply gradient modifiers in Compose</h3>
+              <p>
+                <code>vibrance-compose</code> provides draw modifiers that render pigment-mixed gradients directly on a composable without extra wrapper boxes:
+              </p>
+              <ul class="api-list">
+                <li><code>Modifier.verticalPigmentsGradient</code></li>
+                <li><code>Modifier.horizontalPigmentsGradient</code></li>
+                <li><code>Modifier.linearPigmentsGradient</code></li>
+                <li><code>Modifier.radialPigmentsGradient</code></li>
+                <li><code>Modifier.sweepPigmentsGradient</code></li>
+              </ul>
+              <p>
+                All gradient types except sweep support <code>TileMode.Clamp</code>, <code>TileMode.Repeated</code>, <code>TileMode.Mirror</code>, and <code>TileMode.Decal</code>.
+              </p>
+            </div>
+
+            <div class="code-card">
+              <div class="code-header">
+                <span class="code-filename">GradientModifiersExample.kt</span>
+                <span class="copy">
+                  <button type="button" class="copy-button" command="--copy" commandfor="code-modifiers" aria-label="Copy Compose modifiers example">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/>
+                      <path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/>
+                    </svg>
+                    <span>Copy</span>
+                  </button>
+                  <span class="tip" role="status"></span>
+                </span>
+              </div>
+              <pre id="code-modifiers" role="region" aria-labelledby="heading-modifiers" tabindex="0"><code><span class="tok-kw">import</span> androidx.compose.foundation.layout.Box
+<span class="tok-kw">import</span> androidx.compose.foundation.layout.fillMaxSize
+<span class="tok-kw">import</span> androidx.compose.foundation.layout.fillMaxWidth
+<span class="tok-kw">import</span> androidx.compose.foundation.layout.height
+<span class="tok-kw">import</span> androidx.compose.ui.Modifier
+<span class="tok-kw">import</span> androidx.compose.ui.graphics.Color
+<span class="tok-kw">import</span> androidx.compose.ui.unit.dp
+<span class="tok-kw">import</span> dev.romainguy.vibrance.compose.horizontalPigmentsGradient
+<span class="tok-kw">import</span> dev.romainguy.vibrance.compose.verticalPigmentsGradient
+
+<span class="tok-fn">Box</span>(
+    Modifier
+        .<span class="tok-fn">fillMaxSize</span>()
+        .<span class="tok-fn">verticalPigmentsGradient</span>(
+            startColor = Color.Yellow,
+            endColor = Color.Blue
+        )
+)
+
+<span class="tok-fn">Box</span>(
+    Modifier
+        .<span class="tok-fn">fillMaxWidth</span>()
+        .<span class="tok-fn">height</span>(<span class="tok-num">120</span>.dp)
+        .<span class="tok-fn">horizontalPigmentsGradient</span>(
+            startColor = Color.Yellow,
+            endColor = Color.Red
+        )
+)</code></pre>
+            </div>
+          </div>
+
+          <div class="usage-step">
+            <div class="usage-prose">
+              <h3 id="heading-brushes">4. Use brushes and Compose Color extensions</h3>
+              <p>
+                Matching <code>Brush</code> factory methods—<code>Brush.verticalPigmentsGradient</code>, <code>Brush.horizontalPigmentsGradient</code>, <code>Brush.linearPigmentsGradient</code>, <code>Brush.radialPigmentsGradient</code>, and <code>Brush.sweepPigmentsGradient</code>—work anywhere Compose accepts a <code>Brush</code>, including shapes, borders, <code>Canvas</code> draw calls, and <code>TextStyle</code>.
+              </p>
+              <p>
+                The module also adds extension functions on <code>Vibrance</code> that accept and return Compose <code>Color</code> instances directly, converting non-sRGB inputs automatically.
+              </p>
+            </div>
+
+            <div class="code-card">
+              <div class="code-header">
+                <span class="code-filename">BrushesAndColorsExample.kt</span>
+                <span class="copy">
+                  <button type="button" class="copy-button" command="--copy" commandfor="code-brushes" aria-label="Copy Compose brushes and Color extensions example">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/>
+                      <path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/>
+                    </svg>
+                    <span>Copy</span>
+                  </button>
+                  <span class="tip" role="status"></span>
+                </span>
+              </div>
+              <pre id="code-brushes" role="region" aria-labelledby="heading-brushes" tabindex="0"><code><span class="tok-kw">import</span> androidx.compose.material3.MaterialTheme
+<span class="tok-kw">import</span> androidx.compose.material3.Text
+<span class="tok-kw">import</span> androidx.compose.ui.graphics.Brush
+<span class="tok-kw">import</span> androidx.compose.ui.graphics.Color
+<span class="tok-kw">import</span> dev.romainguy.vibrance.Vibrance
+<span class="tok-kw">import</span> dev.romainguy.vibrance.compose.colorsMix
+<span class="tok-kw">import</span> dev.romainguy.vibrance.compose.horizontalPigmentsGradient
+
+<span class="tok-fn">Text</span>(
+    text = <span class="tok-str">"Pigment-mixed text gradient"</span>,
+    style = MaterialTheme.typography.headlineMedium.<span class="tok-fn">copy</span>(
+        brush = Brush.<span class="tok-fn">horizontalPigmentsGradient</span>(Color.Cyan, Color.Magenta)
+    )
+)
+
+<span class="tok-cm">// Compose Color extension on Vibrance</span>
+<span class="tok-kw">val</span> vibrance = <span class="tok-fn">Vibrance</span>()
+<span class="tok-kw">val</span> green: Color = vibrance.<span class="tok-fn">colorsMix</span>(Color.Yellow, Color.Blue, amount = <span class="tok-num">0.25f</span>)</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p>
+        <strong>Vibrance</strong> v0.3.0 &middot; Released under the
+        <a href="https://github.com/romainguy/vibrance/blob/main/LICENSE">Apache 2.0 License</a>.
+      </p>
+      <p>
+        <a href="https://github.com/romainguy/vibrance">github.com/romainguy/vibrance</a>
+      </p>
+    </div>
+  </footer>
+</body>
+</html>

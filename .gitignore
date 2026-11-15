@@ -1,0 +1,17 @@
+/.externalNativeBuild
+/.gradle
+/.idea
+/.kotlin
+/build
+/captures
+*.iml
+local.properties
+.cxx
+.DS_Store
+/scripts/
+/vibrance/
+/vibrance-compose/
+/vibrance-compose-demo/
+/vibrance-compose-demo-android/
+/vibrance-benchmark/
+/website/
