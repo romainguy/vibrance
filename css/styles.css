@@ -667,6 +667,7 @@
     border-radius: 0.75rem;
     padding: 1.125rem;
     display: grid;
+    grid-template-rows: auto auto 1fr;
     gap: 0.875rem;
     align-content: start;
   }
@@ -847,6 +848,18 @@
 
   .copy-button:hover {
     background-color: var(--border-hairline);
+  }
+
+  .copy-button .icon-check {
+    display: none;
+  }
+
+  .copy-button[data-copied] .icon-copy {
+    display: none;
+  }
+
+  .copy-button[data-copied] .icon-check {
+    display: block;
   }
 
   .copy .tip {

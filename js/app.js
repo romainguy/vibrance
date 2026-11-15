@@ -265,10 +265,7 @@ for (const button of inspectButtons) {
       button.dataset.loadEnd,
       button.dataset.loadGeometry || 'linear'
     );
-    const playgroundSection = document.getElementById('playground');
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    playgroundSection.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth' });
-    startHexInput.focus({ preventScroll: true });
+    startHexInput.focus();
   });
 }
 
@@ -335,41 +332,62 @@ if ('ResizeObserver' in window) {
 
 // Accessible copy buttons (Invoker Commands + click fallback)
 const tipTimers = new WeakMap();
+let lastCopyMessage = '';
 
-function showCopyTip(tip, message) {
+function reportCopyResult(button, ok) {
+  const tip = button.closest('.copy')?.querySelector('.tip');
   if (!tip) return;
-  clearTimeout(tipTimers.get(tip));
-  // Alternate trailing NBSP when repeating the identical string so VoiceOver announces repeats
-  tip.textContent = tip.textContent === message ? `${message}\u00A0` : message;
+
+  clearTimeout(tipTimers.get(button));
+  button.removeAttribute('data-copied');
+  button.removeAttribute('data-failed');
+
+  let message = ok ? 'Copied' : 'Copy failed';
+  // Append an unvoiced NBSP when repeating the last announcement so VoiceOver speaks repeats
+  if (message === lastCopyMessage) {
+    message += '\u00A0';
+  }
+  lastCopyMessage = message;
+
+  tip.textContent = '';
+  button.setAttribute(ok ? 'data-copied' : 'data-failed', '');
   tip.dataset.visible = '';
+  requestAnimationFrame(() => {
+    tip.textContent = message;
+  });
+
   const timer = setTimeout(() => {
+    button.removeAttribute('data-copied');
+    button.removeAttribute('data-failed');
     delete tip.dataset.visible;
+    tip.textContent = '';
   }, 1800);
-  tipTimers.set(tip, timer);
+  tipTimers.set(button, timer);
 }
 
 async function handleCopyAction(button, targetEl) {
   if (!button || !targetEl) return;
-  const tip = button.closest('.copy')?.querySelector('.tip');
+  const text = (targetEl.innerText ?? targetEl.textContent ?? '').trim();
+  if (!text) return;
   try {
-    await navigator.clipboard.writeText(targetEl.textContent ?? '');
-    showCopyTip(tip, 'Copied');
+    await navigator.clipboard.writeText(text);
+    reportCopyResult(button, true);
   } catch {
-    showCopyTip(tip, 'Copy failed');
+    reportCopyResult(button, false);
   }
 }
 
-document.addEventListener(
-  'command',
-  (event) => {
-    if (event.command === '--copy') {
-      handleCopyAction(event.source, event.target);
-    }
-  },
-  true
-);
-
-if (!('CommandEvent' in window)) {
+if ('CommandEvent' in window) {
+  document.addEventListener(
+    'command',
+    (event) => {
+      if (event.command === '--copy') {
+        handleCopyAction(event.source, event.target);
+      }
+    },
+    true
+  );
+} else {
   document.addEventListener('click', (event) => {
     const button = event.target.closest('.copy-button[command="--copy"]');
     if (!button) return;
