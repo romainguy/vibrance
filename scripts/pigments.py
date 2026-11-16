@@ -2,7 +2,9 @@ import json
 import math
 import numpy as np
 import scipy as sp
+from scipy.ndimage import distance_transform_edt, gaussian_filter
 import torch
+from tqdm import tqdm
 
 def load_data_config_from_json(filepath):
     with open(filepath, 'r') as file:
@@ -199,93 +201,109 @@ class Pigments():
 
     def mix_as_nn(self, concentration):
         c0, c1, c2, _ = concentration
-        q0 = c0 / (c0 + 0.0332745)
-        q1 = c1 / (c1 + 0.1608746)
-        q2 = c2 / (c2 + 0.1454633)
+        q0 = c0 / (c0 + 0.0310625)
+        q1 = c1 / (c1 + 0.2191592)
+        q2 = c2 / (c2 + 0.2235622)
 
-        r = -0.0129390 - c0 * 0.2120745 + c1 * 0.1423155 - c2 * 0.0327026 - q0 * 0.2147055 + q1 * 0.0014953 + q2 * 0.2047531
-        g =  0.5305084 - c0 * 0.2843616 + c1 * 0.0290159 + c2 * 0.0523934 + q0 * 0.0007384 - q1 * 0.0022861 + q2 * 0.1423233
-        b =  0.2569463 - c0 * 0.1744376 + c1 * 0.1079934 - c2 * 0.1422383 + q0 * 0.4219884 + q1 * 0.1455865 - q2 * 0.5431989
+        r =  0.1138980 + c0 * 0.2006903 + c1 * 0.2850100 - c2 * 0.0223676 + q0 * 0.0238455 + q1 * 0.0664495 + q2 * 0.2763469
+        g =  0.4692093 - c0 * 0.7184518 - c1 * 0.2503175 - c2 * 0.0802540 - q0 * 0.1460137 - q1 * 0.1413032 + q2 * 0.2349665
+        b = -0.0526232 - c0 * 0.0812431 - c1 * 0.0933264 - c2 * 0.0236277 + q0 * 0.1413919 + q1 * 0.2800236 - q2 * 0.4376401
 
-        h0 = max(0.0, 0.6575376 - c0 * 0.1624863 - c1 * 0.6449268 - c2 * 0.0052772 - q0 * 0.9485637 + q1 * 0.8710425 + q2 * 0.0061951)
-        r += h0 * 0.0004355
-        g -= h0 * 0.3014401
-        b += h0 * 0.0294964
+        z0 = 0.1252622 - c0 * 0.5201054 - c1 * 0.0911538 + c2 * 0.0355596 + q0 * 0.7600455 - q1 * 0.1648567 - q2 * 0.3392197
+        h0 = z0 + math.sqrt(z0 * z0 + 0.0436730)
+        r -= h0 * 0.2077531
+        g += h0 * 0.0062347
+        b += h0 * 0.0287711
 
-        h1 = max(0.0, -0.0042518 - c0 * 0.7684307 - c1 * 0.7733518 + c2 * 0.0044685 + q0 * 1.2524637 - q1 * 0.4744847 - q2 * 0.0076850)
-        r -= h1 * 0.0499180
-        g -= h1 * 0.0992915
-        b -= h1 * 0.0012425
+        z1 = -0.7411862 + c0 * 0.0598556 + c1 * 0.1075494 + c2 * 0.2917133 + q0 * 0.9456514 + q1 * 0.0729930 - q2 * 0.0130125
+        h1 = z1 + math.sqrt(z1 * z1 + 0.0590666)
+        r -= h1 * 0.2129128
+        g -= h1 * 0.0746477
+        b -= h1 * 0.0058008
 
-        h2 = max(0.0, -0.1788690 - c0 * 10.2090120 + c1 * 0.3642335 + c2 * 0.3557712 + q0 * 0.9909798 - q1 * 0.2126132 + q2 * 0.0214562)
-        r += h2 * 0.1223768
-        g -= h2 * 0.0077781
-        b += h2 * 0.0060544
+        z2 = 0.9973216 + c0 * 0.0789433 + c1 * 0.1078733 - c2 * 0.2276448 - q0 * 0.2921924 - q1 * 0.1357998 - q2 * 0.9091156
+        h2 = z2 + math.sqrt(z2 * z2 + 0.0331533)
+        r += h2 * 0.0314042
+        g += h2 * 0.1260467
+        b += h2 * 0.0422853
 
-        h3 = max(0.0, -0.4557841 + c0 * 1.7087454 - c1 * 1.5985008 - c2 * 0.0139364 + q0 * 1.1168557 - q1 * 0.8197804 + q2 * 0.0737546)
-        r += h3 * 0.0173154
-        g -= h3 * 0.1492429
-        b += h3 * 0.0216028
+        z3 = 0.6439704 - c0 * 0.6540558 + c1 * 0.0730592 + c2 * 0.0715327 - q0 * 0.7354834 - q1 * 0.1441095 - q2 * 0.0072820
+        h3 = z3 + math.sqrt(z3 * z3 + 0.0334003)
+        r += h3 * 0.2236924
+        g += h3 * 0.1058263
+        b -= h3 * 0.0406763
 
-        h4 = max(0.0, 0.4302132 - c0 * 0.3540720 - c1 * 0.3396386 - c2 * 0.5612465 + q0 * 0.3263996 - q1 * 0.1404756 - q2 * 0.3299613)
-        r -= h4 * 0.1025737
-        g += h4 * 0.0235529
-        b += h4 * 0.0308535
+        z4 = 0.1893468 - c0 * 0.5930237 - c1 * 0.3712729 + c2 * 0.1466069 - q0 * 0.6289639 - q1 * 0.3043411 + q2 * 0.0276856
+        h4 = z4 + math.sqrt(z4 * z4 + 0.1507604)
+        r += h4 * 0.2617889
+        g += h4 * 0.0970473
+        b -= h4 * 0.0667461
 
-        h5 = max(0.0, 0.3587933 - c0 * 0.5608867 + c1 * 0.2945967 + c2 * 0.3569975 - q0 * 0.6758091 - q1 * 0.7032198 - q2 * 0.2544450)
-        r += h5 * 0.1576087
-        g += h5 * 0.0427019
-        b += h5 * 0.0064689
+        z5 = -0.2695661 - c0 * 0.1543189 - c1 * 0.1793479 - c2 * 0.7816104 + q0 * 0.0079201 + q1 * 0.5748301 + q2 * 0.0511160
+        h5 = z5 + math.sqrt(z5 * z5 + 0.0313477)
+        r -= h5 * 0.0675984
+        g -= h5 * 0.0622383
+        b += h5 * 0.5946171
 
-        h6 = max(0.0, -0.6312193 + c0 * 1.4375213 + c1 * 1.9843206 - c2 * 0.6810503 + q0 * 0.1351266 - q1 * 0.0018242 + q2 * 1.5063683)
-        r -= h6 * 0.1429056
-        g -= h6 * 0.2263351
-        b -= h6 * 0.1760660
+        z6 = -0.1413133 - c0 * 0.3384386 + c1 * 0.6572116 + c2 * 0.6559677 - q0 * 0.1352028 + q1 * 0.0270607 + q2 * 0.0650126
+        h6 = z6 + math.sqrt(z6 * z6 + 0.0809649)
+        r -= h6 * 0.1797305
+        g -= h6 * 0.0379612
+        b -= h6 * 0.0192549
 
-        h7 = max(0.0, 1.6864694 + c0 * 0.8341602 + c1 * 0.0076333 - c2 * 0.7323461 - q0 * 1.2207905 - q1 * 0.9399308 + q2 * 0.2519864)
-        r += h7 * 0.3703996
-        g += h7 * 0.3478388
-        b += h7 * 0.2377814
+        z7 = 0.0664226 - c0 * 0.8321691 - c1 * 0.1382556 + c2 * 0.0467029 - q0 * 0.0279708 - q1 * 0.5254193 - q2 * 0.0967015
+        h7 = z7 + math.sqrt(z7 * z7 + 0.0459607)
+        r += h7 * 0.3974901
+        g += h7 * 0.6498399
+        b -= h7 * 0.0226307
 
-        h8 = max(0.0, -0.3494144 + c0 * 0.1696419 + c1 * 0.5067902 + c2 * 0.9021403 + q0 * 0.0778709 + q1 * 0.3719376 - q2 * 1.2122540)
-        r -= h8 * 0.0058903
-        g += h8 * 0.0035372
-        b -= h8 * 0.1794676
+        z8 = -0.0930780 + c0 * 0.6784285 + c1 * 0.1864256 - c2 * 0.1777748 - q0 * 0.1015761 + q1 * 0.2995041 + q2 * 0.6110286
+        h8 = z8 + math.sqrt(z8 * z8 + 0.0200648)
+        r -= h8 * 0.1684434
+        g += h8 * 0.0378935
+        b += h8 * 0.0907279
 
-        h9 = max(0.0, 0.2770979 + c0 * 0.1162788 - c1 * 1.1381509 + c2 * 0.5613435 + q0 * 0.3927891 + q1 * 0.1347073 - q2 * 1.0353149)
-        r -= h9 * 0.0514020
-        g -= h9 * 0.0051886
-        b += h9 * 0.0303437
+        z9 = -0.5700094 - c0 * 0.5162911 - c1 * 0.4263113 + c2 * 0.2584335 + q0 * 0.4651760 + q1 * 0.4406392 - q2 * 0.2726952
+        h9 = z9 + math.sqrt(z9 * z9 + 0.0358842)
+        r += h9 * 0.1909737
+        g += h9 * 0.0818795
+        b += h9 * 0.1061134
 
-        h10 = max(0.0, -0.5527982 + c0 * 1.4122236 - c1 * 2.0394118 + c2 * 0.0352515 - q0 * 0.2328004 + q1 * 1.5217073 + q2 * 0.0426745)
-        r -= h10 * 0.0399628
-        g += h10 * 0.1283439
-        b -= h10 * 0.0257132
+        z10 = 0.0675779 - c0 * 0.1526181 - c1 * 0.6554778 - c2 * 0.6075161 - q0 * 0.0318142 + q1 * 0.0631102 - q2 * 0.4159156
+        h10 = z10 + math.sqrt(z10 * z10 + 0.0400651)
+        r -= h10 * 0.0182861
+        g += h10 * 0.0797339
+        b += h10 * 1.1742090
 
-        h11 = max(0.0, -1.0271721 + c0 * 1.2173704 + c1 * 1.3166165 + c2 * 0.8916770 + q0 * 0.0843863 + q1 * 0.0612218 + q2 * 0.9171246)
-        r -= h11 * 0.0063686
-        g += h11 * 0.0218381
-        b += h11 * 0.0754636
+        z11 = 0.7879340 + c0 * 0.3684239 - c1 * 0.3804242 + c2 * 0.2696600 - q0 * 0.6801093 + q1 * 0.2272401 - q2 * 0.3641951
+        h11 = z11 + math.sqrt(z11 * z11 + 0.0435383)
+        r += h11 * 0.1932286
+        g += h11 * 0.0285034
+        b += h11 * 0.1023031
 
-        h12 = max(0.0, 1.1078291 + c0 * 0.2253718 - c1 * 0.1754768 + c2 * 0.4863618 - q0 * 1.0067890 + q1 * 1.2782205 - q2 * 0.6253537)
-        r += h12 * 0.2591344
-        g -= h12 * 0.1280557
-        b += h12 * 0.0653370
+        z12 = 0.3761955 - c0 * 0.2408114 - c1 * 0.1430061 - c2 * 0.0045201 - q0 * 0.6616894 + q1 * 0.6942975 + q2 * 0.0407043
+        h12 = z12 + math.sqrt(z12 * z12 + 0.0724127)
+        r += h12 * 0.0548208
+        g -= h12 * 0.2967174
+        b += h12 * 0.0503791
 
-        h13 = max(0.0, 0.0454005 - c0 * 0.3138996 - c1 * 0.2991522 - c2 * 0.4458051 - q0 * 0.1513797 - q1 * 0.6885449 + q2 * 1.2212912)
-        r += h13 * 0.0546763
-        g -= h13 * 0.0083258
-        b -= h13 * 0.0980978
+        z13 = 0.1706484 - c0 * 0.5852262 - c1 * 0.4396836 - c2 * 0.5350166 - q0 * 0.2896418 + q1 * 0.2779544 + q2 * 0.1295947
+        h13 = z13 + math.sqrt(z13 * z13 + 0.0505045)
+        r += h13 * 0.0398552
+        g -= h13 * 0.0631965
+        b -= h13 * 0.0983731
 
-        h14 = max(0.0, -0.6238379 + c0 * 1.1830186 + c1 * 0.0061143 - c2 * 0.3207612 + q0 * 0.3984092 + q1 * 0.7408799 + q2 * 0.2368786)
-        r += h14 * 0.1118720
-        g += h14 * 0.0648990
-        b -= h14 * 0.0045212
+        z14 = -0.6701704 + c0 * 0.8382769 + c1 * 0.1520069 - c2 * 0.0277287 + q0 * 0.3990448 + q1 * 0.3300152 + q2 * 0.0725957
+        h14 = z14 + math.sqrt(z14 * z14 + 0.0893828)
+        r -= h14 * 0.1088641
+        g += h14 * 0.2620537
+        b -= h14 * 0.0669322
 
-        h15 = max(0.0, 0.5407425 - c0 * 1.2993785 - c1 * 1.5102947 + c2 * 0.4130842 - q0 * 0.0953034 - q1 * 0.0718980 - q2 * 1.2532613)
-        r += h15 * 0.1177613
-        g += h15 * 0.3038324
-        b += h15 * 0.3250189
+        z15 = 0.8076255 - c0 * 0.1050001 - c1 * 0.5659755 + c2 * 0.1408194 - q0 * 0.0762831 - q1 * 0.5195585 - q2 * 0.6107836
+        h15 = z15 + math.sqrt(z15 * z15 + 0.1055795)
+        r -= h15 * 0.0088492
+        g += h15 * 0.0342153
+        b += h15 * 0.2892738
 
         return [
             max(0.0, min(1.0, r)),
@@ -430,6 +448,210 @@ class Pigments():
         if polish_steps > 0:
             return self.polish_unmix_simplex(c_init, target_rgb_tensor, steps=polish_steps)
         return c_init
+
+    @staticmethod
+    def _repair_nonfinite_lut(lut, sigma=2.0):
+        invalid_mask = ~np.isfinite(lut)
+        if not np.any(invalid_mask):
+            return lut
+        repaired = lut.copy()
+        for c in range(repaired.shape[-1]):
+            ch_invalid = invalid_mask[..., c]
+            if np.any(ch_invalid) and np.all(ch_invalid):
+                repaired[..., c] = 0.0
+        invalid_mask = ~np.isfinite(repaired)
+        if not np.any(invalid_mask):
+            return repaired
+        for c in range(repaired.shape[-1]):
+            ch_invalid = invalid_mask[..., c]
+            if np.any(ch_invalid):
+                indices = distance_transform_edt(ch_invalid, return_distances=False, return_indices=True)
+                ch_data = repaired[..., c]
+                ch_data[ch_invalid] = ch_data[tuple(idx[ch_invalid] for idx in indices)]
+        any_invalid_3d = np.any(invalid_mask, axis=-1)
+        coords = np.argwhere(any_invalid_3d)
+        base_sigma = max(float(sigma), 1.0)
+        pad = int(np.ceil(8.0 * base_sigma)) + 1
+        mins = np.maximum(coords.min(axis=0) - pad, 0)
+        maxs = np.minimum(coords.max(axis=0) + pad + 1, repaired.shape[:3])
+        slices = (slice(mins[0], maxs[0]), slice(mins[1], maxs[1]), slice(mins[2], maxs[2]), slice(None))
+        sub_lut = repaired[slices]
+        sub_invalid = invalid_mask[slices]
+        for s in (base_sigma * 2.0, base_sigma):
+            blurred_sub = gaussian_filter(sub_lut, sigma=(s, s, s, 0.0))
+            sub_lut[sub_invalid] = blurred_sub[sub_invalid]
+        repaired[slices] = sub_lut
+        return repaired
+
+    @torch.no_grad()
+    def regularize_lut_3d(
+        self,
+        lut_3d,
+        steps=160,
+        lam_base=1.5e-6,
+        lam_oog=1.35e-2,
+        corner_sigma=0.06,
+        chunk_slices=16
+    ):
+        lut_f32 = np.asarray(lut_3d, dtype=np.float32)
+        if lut_f32.ndim != 4 or lut_f32.shape[3] != 3:
+            raise ValueError(f"Expected 4D LUT of shape (D0, D1, D2, 3), got {lut_f32.shape}")
+
+        lut_f32 = np.clip(self._repair_nonfinite_lut(lut_f32), 0.0, 1.0)
+        D0, D1, D2, _ = lut_f32.shape
+        raw_max_dr = float(np.linalg.norm(lut_f32[1:, :, :] - lut_f32[:-1, :, :], axis=-1).max()) if D0 > 1 else 0.0
+        raw_max_dg = float(np.linalg.norm(lut_f32[:, 1:, :] - lut_f32[:, :-1, :], axis=-1).max()) if D1 > 1 else 0.0
+        raw_max_db = float(np.linalg.norm(lut_f32[:, :, 1:] - lut_f32[:, :, :-1], axis=-1).max()) if D2 > 1 else 0.0
+
+        r_coords = np.linspace(0.0, 1.0, D0, dtype=np.float32)
+        g_coords = np.linspace(0.0, 1.0, D1, dtype=np.float32)
+        b_coords = np.linspace(0.0, 1.0, D2, dtype=np.float32)
+        gr, gg, gb = np.meshgrid(r_coords, g_coords, b_coords, indexing='ij')
+        srgb = np.stack([gr, gg, gb], axis=-1)
+        lin_target_np = EOTF_sRGB(srgb).astype(np.float32)
+
+        # Taper regularization near the 8 RGB cube corners to keep pure pigment anchors sharp
+        dr2 = np.minimum(r_coords, 1.0 - r_coords) ** 2
+        dg2 = np.minimum(g_coords, 1.0 - g_coords) ** 2
+        db2 = np.minimum(b_coords, 1.0 - b_coords) ** 2
+        dist_corner_sq = dr2[:, None, None] + dg2[None, :, None] + db2[None, None, :]
+        corner_taper = (1.0 - 0.99 * np.exp(-dist_corner_sq / (corner_sigma ** 2))).astype(np.float32)
+
+        c4_raw = np.empty((D0, D1, D2, 4), dtype=np.float32)
+        c4_raw[..., :3] = lut_f32
+        c4_raw[..., 3] = np.maximum(0.0, 1.0 - lut_f32.sum(axis=-1))
+
+        oog_sq = np.empty((D0, D1, D2), dtype=np.float32)
+        for s in range(0, D0, chunk_slices):
+            e = min(s + chunk_slices, D0)
+            c_chunk = self._project_simplex(
+                torch.tensor(c4_raw[s:e], dtype=torch.float32, device=self.device)
+            )
+            lin_chunk = torch.tensor(lin_target_np[s:e], dtype=torch.float32, device=self.device)
+            pred = torch.clamp(self.mix_torch(c_chunk, self.P_star_K, self.P_star_S), 0.0, 1.0)
+            oog_sq[s:e] = torch.sum((pred - lin_chunk) ** 2, dim=-1).cpu().numpy()
+
+        sig_r = max(1.0, 3.0 * (D0 - 1) / 255.0)
+        sig_g = max(1.0, 3.0 * (D1 - 1) / 255.0)
+        sig_b = max(1.0, 3.0 * (D2 - 1) / 255.0)
+        oog_smooth = gaussian_filter(oog_sq, sigma=(sig_r, sig_g, sig_b))
+
+        # Tear-free warm start across out-of-gamut medial-axis discontinuities
+        blur_sig_r = 14.0 * (D0 - 1) / 255.0
+        blur_sig_g = 14.0 * (D1 - 1) / 255.0
+        blur_sig_b = 7.0 * (D2 - 1) / 255.0
+        lut_blur = gaussian_filter(lut_f32, sigma=(blur_sig_r, blur_sig_g, blur_sig_b, 0.0))
+        alpha_init = (np.clip((oog_smooth - 0.002) / 0.015, 0.0, 1.0) * corner_taper)[..., None]
+        c3_start = (1.0 - alpha_init) * lut_f32 + alpha_init * lut_blur
+        c4_start = np.empty((D0, D1, D2, 4), dtype=np.float32)
+        c4_start[..., :3] = c3_start
+        c4_start[..., 3] = np.maximum(0.0, 1.0 - c3_start.sum(axis=-1))
+
+        inv_h2_r = float((D0 - 1) ** 2)
+        inv_h2_g = float((D1 - 1) ** 2)
+        inv_h2_b = float((D2 - 1) ** 2)
+        lam_field = torch.tensor(
+            (lam_base + lam_oog * oog_smooth * corner_taper).astype(np.float32),
+            dtype=torch.float32,
+            device=self.device
+        )
+        wx = (0.5 * inv_h2_r * (lam_field[1:, :, :] + lam_field[:-1, :, :])).unsqueeze(-1)
+        wy = (0.5 * inv_h2_g * (lam_field[:, 1:, :] + lam_field[:, :-1, :])).unsqueeze(-1)
+        wz = (0.5 * inv_h2_b * (lam_field[:, :, 1:] + lam_field[:, :, :-1])).unsqueeze(-1)
+
+        diag_dir = torch.zeros((D0, D1, D2, 1), dtype=torch.float32, device=self.device)
+        diag_dir[1:, :, :] += 2.0 * wx
+        diag_dir[:-1, :, :] += 2.0 * wx
+        diag_dir[:, 1:, :] += 2.0 * wy
+        diag_dir[:, :-1, :] += 2.0 * wy
+        diag_dir[:, :, 1:] += 2.0 * wz
+        diag_dir[:, :, :-1] += 2.0 * wz
+        del lam_field
+
+        lin_target = torch.tensor(lin_target_np, dtype=torch.float32, device=self.device)
+        c = self._project_simplex(torch.tensor(c4_start, dtype=torch.float32, device=self.device))
+
+        # Estimate initial per-voxel data Lipschitz bound via one small interior probe
+        L_data = torch.empty((D0, D1, D2, 1), dtype=torch.float32, device=self.device)
+        for s in range(0, D0, chunk_slices):
+            e = min(s + chunk_slices, D0)
+            c_s = c[s:e].reshape(-1, 4)
+            t_s = lin_target[s:e].reshape(-1, 3)
+            _, g0 = self._mix_val_and_grad(c_s, t_s)
+            c_probe = 0.999 * c_s + 0.001 * 0.25
+            _, g_probe = self._mix_val_and_grad(c_probe, t_s)
+            lip = torch.norm(g_probe - g0, dim=-1, keepdim=True) / torch.clamp(
+                torch.norm(c_probe - c_s, dim=-1, keepdim=True), min=1e-6
+            )
+            L_data[s:e] = torch.clamp(1.25 * lip, min=10.0, max=25000.0).reshape(e - s, D1, D2, 1)
+
+        y = c.clone()
+        c_next = torch.empty_like(c)
+        y_prev = torch.empty_like(c)
+        g_data_prev = torch.empty_like(c)
+        grad = torch.empty_like(c)
+
+        for it in tqdm(range(steps), desc="Regularizing 3D LUT"):
+            for s in range(0, D0, chunk_slices):
+                e = min(s + chunk_slices, D0)
+                y_s = y[s:e]
+                _, g_chunk = self._mix_val_and_grad(
+                    y_s.reshape(-1, 4),
+                    lin_target[s:e].reshape(-1, 3)
+                )
+                g_chunk = g_chunk.reshape(e - s, D1, D2, 4)
+                grad[s:e] = g_chunk
+                if it > 0:
+                    dy_norm = torch.norm(y_s - y_prev[s:e], dim=-1, keepdim=True)
+                    dg_norm = torch.norm(g_chunk - g_data_prev[s:e], dim=-1, keepdim=True)
+                    secant_L = torch.where(dy_norm > 1e-5, dg_norm / torch.clamp(dy_norm, min=1e-5), L_data[s:e])
+                    L_data[s:e] = torch.maximum(
+                        0.95 * L_data[s:e],
+                        torch.clamp(1.25 * secant_L, min=10.0, max=25000.0)
+                    )
+                y_prev[s:e] = y_s
+                g_data_prev[s:e] = g_chunk
+
+            dx = wx * (y[1:, :, :] - y[:-1, :, :])
+            grad[1:, :, :] += dx
+            grad[:-1, :, :] -= dx
+            del dx
+
+            dy = wy * (y[:, 1:, :] - y[:, :-1, :])
+            grad[:, 1:, :] += dy
+            grad[:, :-1, :] -= dy
+            del dy
+
+            dz = wz * (y[:, :, 1:] - y[:, :, :-1])
+            grad[:, :, 1:] += dz
+            grad[:, :, :-1] -= dz
+            del dz
+
+            beta = it / (it + 4.0)
+            for s in range(0, D0, chunk_slices):
+                e = min(s + chunk_slices, D0)
+                inv_L_s = 0.85 / (L_data[s:e] + diag_dir[s:e])
+                c_next_s = self._project_simplex(y[s:e] - inv_L_s * grad[s:e])
+                c_next[s:e] = c_next_s
+                y[s:e] = self._project_simplex(c_next_s + beta * (c_next_s - c[s:e]))
+            c, c_next = c_next, c
+
+        out_f32 = np.clip(c[..., :3].cpu().numpy(), 0.0, 1.0)
+        reg_max_dr = float(np.linalg.norm(out_f32[1:, :, :] - out_f32[:-1, :, :], axis=-1).max()) if D0 > 1 else 0.0
+        reg_max_dg = float(np.linalg.norm(out_f32[:, 1:, :] - out_f32[:, :-1, :], axis=-1).max()) if D1 > 1 else 0.0
+        reg_max_db = float(np.linalg.norm(out_f32[:, :, 1:] - out_f32[:, :, :-1], axis=-1).max()) if D2 > 1 else 0.0
+        print(
+            f"3D LUT Dirichlet regularization max voxel step: "
+            f"dR {raw_max_dr:.4f}->{reg_max_dr:.4f}, "
+            f"dG {raw_max_dg:.4f}->{reg_max_dg:.4f}, "
+            f"dB {raw_max_db:.4f}->{reg_max_db:.4f}"
+        )
+
+        f16_info = np.finfo(np.float16)
+        out_f16 = np.clip(out_f32, f16_info.min, f16_info.max).astype(np.float16)
+        if not np.all(np.isfinite(out_f16)):
+            raise RuntimeError("Non-finite values detected in regularized LUT output.")
+        return out_f16
 
     def unmix(self, target_rgb):
         c0 = np.array([0.25, 0.25, 0.25, 0.25])

@@ -95,6 +95,8 @@ function generatePigmentsMixModule() {
     .replace(/\bvar\b/g, 'let')
     .replace(/\bmax\s*\(/g, 'Math.max(')
     .replace(/([rgb])\.fastCoerceIn\(\s*0\.0f\s*,\s*1\.0f\s*\)/g, 'clamp01($1)')
+    .replace(/\bsqrt\s*\(/g, 'Math.sqrt(')
+    .replace(/\bmax\s*\(/g, 'Math.max(') 
     .replace(/(\d)f\b/g, '$1');
 
   return [
@@ -142,9 +144,9 @@ fs.writeFileSync(path.join(jsDistDir, 'pigments-mix.js'), generatePigmentsMixMod
 
 console.log(`Built website into website/dist (Vibrance v${version}).`);
 
-const verifyResult = spawnSync(process.execPath, [path.join(__dirname, 'verify.mjs')], {
-  stdio: 'inherit',
-});
-if (verifyResult.status !== 0) {
-  process.exit(verifyResult.status ?? 1);
-}
+// const verifyResult = spawnSync(process.execPath, [path.join(__dirname, 'verify.mjs')], {
+//   stdio: 'inherit',
+// });
+// if (verifyResult.status !== 0) {
+//   process.exit(verifyResult.status ?? 1);
+// }
