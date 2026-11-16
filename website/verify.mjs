@@ -22,6 +22,7 @@ const vibrance = new Vibrance();
 
 // 1. colorRoundTrip (mirrors VibranceTest.kt)
 const testColors = [
+  [0.0, 0.0, 0.0],
   [0.0, 0.0, 1.0],
   [1.0, 1.0, 0.0],
   [0.0, 0.0, 1.0],
@@ -32,10 +33,20 @@ const testColors = [
   [0.0, 0.5, 1.0],
   [1.0, 1.0, 0.0],
   [0.9, 0.0, 0.1],
+  [78 / 255, 113 / 255, 253 / 255],
+  [72 / 255, 107 / 255, 249 / 255],
+  [45 / 255, 81 / 255, 225 / 255],
+  [21 / 255, 40 / 255, 192 / 255],
 ];
 
 for (const color of testColors) {
   const latent = vibrance.colorToLatentColor(color[0], color[1], color[2]);
+  for (let k = 0; k < 6; k++) {
+    assert.ok(
+      latent[k] >= 0.0 && latent[k] <= 1.0,
+      `Expected latent[${k}] in [0, 1] for [${color.join(', ')}], got ${latent[k]}`
+    );
+  }
   const roundTripped = vibrance.latentColorToColor(latent);
   assertAlmostEquals(color, roundTripped);
 }
@@ -71,9 +82,20 @@ for (const color of testColors) {
   assertAlmostEquals(yellowBlueMid, latentMid, 1e-6);
   const midChroma = Math.max(...yellowBlueMid) - Math.min(...yellowBlueMid);
   assert.ok(
-    midChroma > 0.4,
-    `Expected saturated midpoint for Yellow + Blue, got [${Array.from(yellowBlueMid).join(', ')}]`
+    midChroma > 0.3 && yellowBlueMid[1] > yellowBlueMid[0] && yellowBlueMid[1] > yellowBlueMid[2],
+    `Expected green-dominant saturated midpoint for Yellow + Blue, got [${Array.from(yellowBlueMid).join(', ')}]`
   );
+
+  // Verify out-of-gamut magenta -> dark blue avoids green floor-clamping Mach bands
+  let prevGreen = 0.0;
+  for (const t of [0.1, 0.25, 0.5, 0.75, 1.0]) {
+    const mixed = vibrance.colorsMix(1.0, 0.0, 1.0, 21 / 255, 40 / 255, 192 / 255, t);
+    assert.ok(
+      mixed[1] > prevGreen,
+      `Expected strictly increasing green > 0 at t=${t}, got ${mixed[1]} <= ${prevGreen}`
+    );
+    prevGreen = mixed[1];
+  }
 
   // Verify valid pigmentsMix call (concentrations summing to 1.0)
   const pureWhite = vibrance.pigmentsMix(0.0, 0.0, 0.0, 1.0);

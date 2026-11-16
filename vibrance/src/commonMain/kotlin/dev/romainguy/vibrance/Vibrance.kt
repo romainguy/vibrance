@@ -157,9 +157,9 @@ class Vibrance {
         latentColor[0] = latent0
         latentColor[1] = latent1
         latentColor[2] = latent2
-        latentColor[3] = eotfSrgb(r) - buffer[0]
-        latentColor[4] = eotfSrgb(g) - buffer[1]
-        latentColor[5] = eotfSrgb(b) - buffer[2]
+        latentColor[3] = encodeRemainder(eotfSrgb(r), buffer[0])
+        latentColor[4] = encodeRemainder(eotfSrgb(g), buffer[1])
+        latentColor[5] = encodeRemainder(eotfSrgb(b), buffer[2])
 
         return latentColor
     }
@@ -187,9 +187,9 @@ class Vibrance {
 
         pigmentsMixLinear(blue, magenta, yellow, color)
 
-        color[0] = oetfSrgb((color[0] + latentColor[3]).fastCoerceIn(0.0f, 1.0f))
-        color[1] = oetfSrgb((color[1] + latentColor[4]).fastCoerceIn(0.0f, 1.0f))
-        color[2] = oetfSrgb((color[2] + latentColor[5]).fastCoerceIn(0.0f, 1.0f))
+        color[0] = oetfSrgb(applyRemainder(color[0], latentColor[3]))
+        color[1] = oetfSrgb(applyRemainder(color[1], latentColor[4]))
+        color[2] = oetfSrgb(applyRemainder(color[2], latentColor[5]))
 
         return color
     }
@@ -224,9 +224,9 @@ class Vibrance {
         val c2 = lerp(src[2], dst[2], amount)
         pigmentsMixLinear(c0, c1, c2, color)
 
-        color[0] = oetfSrgb((color[0] + lerp(src[3], dst[3], amount)).fastCoerceIn(0.0f, 1.0f))
-        color[1] = oetfSrgb((color[1] + lerp(src[4], dst[4], amount)).fastCoerceIn(0.0f, 1.0f))
-        color[2] = oetfSrgb((color[2] + lerp(src[5], dst[5], amount)).fastCoerceIn(0.0f, 1.0f))
+        color[0] = oetfSrgb(applyRemainder(color[0], lerp(src[3], dst[3], amount)))
+        color[1] = oetfSrgb(applyRemainder(color[1], lerp(src[4], dst[4], amount)))
+        color[2] = oetfSrgb(applyRemainder(color[2], lerp(src[5], dst[5], amount)))
 
         return color
     }
@@ -277,9 +277,9 @@ class Vibrance {
         val srcPigment2 = color[2]
 
         pigmentsMixLinear(srcPigment0, srcPigment1, srcPigment2, color)
-        val srcRemainderR = eotfSrgb(srcR) - color[0]
-        val srcRemainderG = eotfSrgb(srcG) - color[1]
-        val srcRemainderB = eotfSrgb(srcB) - color[2]
+        val srcRemainderR = encodeRemainder(eotfSrgb(srcR), color[0])
+        val srcRemainderG = encodeRemainder(eotfSrgb(srcG), color[1])
+        val srcRemainderB = encodeRemainder(eotfSrgb(srcB), color[2])
 
         // Destination
         val dstR = dstR.fastCoerceIn(0.0f, 1.0f)
@@ -292,18 +292,18 @@ class Vibrance {
         val dstPigment2 = color[2]
 
         pigmentsMixLinear(dstPigment0, dstPigment1, dstPigment2, color)
-        val dstRemainderR = eotfSrgb(dstR) - color[0]
-        val dstRemainderG = eotfSrgb(dstG) - color[1]
-        val dstRemainderB = eotfSrgb(dstB) - color[2]
+        val dstRemainderR = encodeRemainder(eotfSrgb(dstR), color[0])
+        val dstRemainderG = encodeRemainder(eotfSrgb(dstG), color[1])
+        val dstRemainderB = encodeRemainder(eotfSrgb(dstB), color[2])
 
         val c0 = lerp(srcPigment0, dstPigment0, amount)
         val c1 = lerp(srcPigment1, dstPigment1, amount)
         val c2 = lerp(srcPigment2, dstPigment2, amount)
         pigmentsMixLinear(c0, c1, c2, color)
 
-        color[0] = oetfSrgb((color[0] + lerp(srcRemainderR, dstRemainderR, amount)).fastCoerceIn(0.0f, 1.0f))
-        color[1] = oetfSrgb((color[1] + lerp(srcRemainderG, dstRemainderG, amount)).fastCoerceIn(0.0f, 1.0f))
-        color[2] = oetfSrgb((color[2] + lerp(srcRemainderB, dstRemainderB, amount)).fastCoerceIn(0.0f, 1.0f))
+        color[0] = oetfSrgb(applyRemainder(color[0], lerp(srcRemainderR, dstRemainderR, amount)))
+        color[1] = oetfSrgb(applyRemainder(color[1], lerp(srcRemainderG, dstRemainderG, amount)))
+        color[2] = oetfSrgb(applyRemainder(color[2], lerp(srcRemainderB, dstRemainderB, amount)))
 
         return color
     }

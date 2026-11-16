@@ -675,21 +675,21 @@ class Pigments():
 
     def lerp(self, rgb1, rgb2, t):
         c1 = self.unmix(rgb1)
-        r1 = np.asarray(rgb1) - self.mix_linear(c1)
+        r1 = encode_remainder(rgb1, self.mix_linear(c1))
 
         c2 = self.unmix(rgb2)
-        r2 = np.asarray(rgb2) - self.mix_linear(c2)
+        r2 = encode_remainder(rgb2, self.mix_linear(c2))
 
         c = (1 - t) * c1 + t * c2
         r = (1 - t) * r1 + t * r2
 
-        return np.clip(OETF_sRGB(self.mix_linear(c) + r), 0, 1)
+        return np.clip(OETF_sRGB(apply_remainder(self.mix_linear(c), r)), 0, 1)
 
     def latent_lerp(self, c1, r1, c2, r2, t):
         c = (1 - t) * c1 + t * c2
         r = (1 - t) * r1 + t * r2
 
-        return np.clip(OETF_sRGB(self.mix_linear(c) + r), 0, 1)
+        return np.clip(OETF_sRGB(apply_remainder(self.mix_linear(c), r)), 0, 1)
 
     def __generate_boundary_samples(self, steps=256):
         x = torch.arange(steps + 1, device=self.device, dtype=torch.float32)
@@ -889,6 +889,18 @@ def OETF_sRGB(x):
         12.92 * x,
         1.055 * (x ** (1.0 / 2.4)) - 0.055
     )
+
+def encode_remainder(target_rgb, mixed_rgb, eps=0.01):
+    mp = eps + (1.0 - 2.0 * eps) * np.asarray(mixed_rgb)
+    target = np.clip(np.asarray(target_rgb), 0.0, 1.0)
+    num = target * (1.0 - mp)
+    return num / (num + (1.0 - target) * mp)
+
+def apply_remainder(mixed_rgb, remainder, eps=0.01):
+    b = np.clip(np.asarray(remainder), 0.0, 1.0)
+    mp = eps + (1.0 - 2.0 * eps) * np.asarray(mixed_rgb)
+    num = mp * b
+    return np.clip(num / (num + (1.0 - mp) * (1.0 - b)), 0.0, 1.0)
 
 def _substrate(a, b, bSX, canvas_reflectance):
     result = np.empty_like(a)

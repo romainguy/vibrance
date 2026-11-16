@@ -3,6 +3,7 @@ import kotlin.floatArrayOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class VibranceTest {
     private val vibrance = Vibrance()
@@ -10,6 +11,7 @@ class VibranceTest {
     @Test
     fun colorRoundTrip() {
         val colors = arrayOf(
+            floatArrayOf(0.0f, 0.0f, 0.0f),
             floatArrayOf(0.0f, 0.0f, 1.0f),
             floatArrayOf(1.0f, 1.0f, 0.0f),
             floatArrayOf(0.0f, 0.0f, 1.0f),
@@ -19,10 +21,17 @@ class VibranceTest {
             floatArrayOf(1.0f, 1.0f, 1.0f),
             floatArrayOf(0.0f, 0.5f, 1.0f),
             floatArrayOf(1.0f, 1.0f, 0.0f),
-            floatArrayOf(0.9f, 0.0f, 0.1f)
+            floatArrayOf(0.9f, 0.0f, 0.1f),
+            floatArrayOf(78.0f / 255.0f, 113.0f / 255.0f, 253.0f / 255.0f),
+            floatArrayOf(72.0f / 255.0f, 107.0f / 255.0f, 249.0f / 255.0f),
+            floatArrayOf(45.0f / 255.0f, 81.0f / 255.0f, 225.0f / 255.0f),
+            floatArrayOf(21.0f / 255.0f, 40.0f / 255.0f, 192.0f / 255.0f)
         )
         for (color in colors) {
             val latent = vibrance.colorToLatentColor(color[0], color[1], color[2])
+            for (v in latent) {
+                assertTrue(v in 0.0f..1.0f, "Expected latent value in [0, 1], got $v")
+            }
             val newColor = vibrance.latentColorToColor(latent)
             assertAlmostEquals(color, newColor)
         }
@@ -99,6 +108,39 @@ class VibranceTest {
         }
         assertFailsWith<IllegalArgumentException> {
             vibrance.pigmentsMix(1.0f, 0.0f, 0.0f, 0.0f, FloatArray(2))
+        }
+    }
+
+    @Test
+    fun colorsMixMatchesLatentColorsMix() {
+        val pairs = arrayOf(
+            floatArrayOf(1.0f, 0.0f, 1.0f) to floatArrayOf(45.0f / 255.0f, 81.0f / 255.0f, 225.0f / 255.0f),
+            floatArrayOf(1.0f, 1.0f, 0.0f) to floatArrayOf(0.0f, 0.0f, 1.0f)
+        )
+        val amounts = floatArrayOf(0.0f, 0.25f, 0.5f, 0.75f, 1.0f)
+        for ((src, dst) in pairs) {
+            val latentSrc = vibrance.colorToLatentColor(src[0], src[1], src[2])
+            val latentDst = vibrance.colorToLatentColor(dst[0], dst[1], dst[2])
+            for (t in amounts) {
+                val direct = vibrance.colorsMix(src[0], src[1], src[2], dst[0], dst[1], dst[2], t)
+                val latentMixed = vibrance.latentColorsMix(latentSrc, latentDst, t)
+                assertAlmostEquals(latentMixed, direct, eps = 1e-6f)
+            }
+        }
+    }
+
+    @Test
+    fun outOfGamutMixAvoidsFloorClamping() {
+        val amounts = floatArrayOf(0.1f, 0.25f, 0.5f, 0.75f, 1.0f)
+        var prevGreen = 0.0f
+        for (t in amounts) {
+            val mixed = vibrance.colorsMix(
+                1.0f, 0.0f, 1.0f,
+                21.0f / 255.0f, 40.0f / 255.0f, 192.0f / 255.0f,
+                t
+            )
+            assertTrue(mixed[1] > prevGreen, "Expected green > $prevGreen at t=$t, got ${mixed[1]}")
+            prevGreen = mixed[1]
         }
     }
 }

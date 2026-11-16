@@ -24,6 +24,9 @@ const int TileMode_Repeated = 1;
 const int TileMode_Mirror = 2;
 const int TileMode_Decal = 3;
 
+const float RemainderPad = 0.01;
+const float RemainderScale = 0.98;
+
 float triangleNoise(float2 n) {
     // triangle noise, in [-1.0..1.0[ range
     n  = fract(n * float2(5.3987, 5.4421));
@@ -212,9 +215,11 @@ half4 main(float2 fragCoord) {
     $tileMode
 
     float3 l0 = mix($UniformLatent1, $UniformLatent2, t);
-    float3 r0 = mix($UniformRemainders1, $UniformRemainders2, t);
+    float3 r0 = saturate(mix($UniformRemainders1, $UniformRemainders2, t));
 
-    half3 color = half3(mixPigments(l0) + r0);
+    float3 mp = RemainderPad + RemainderScale * mixPigments(l0);
+    float3 num = mp * r0;
+    half3 color = half3(saturate(num / (num + (1.0 - mp) * (1.0 - r0))));
     color = fromLinearSrgb(color);
 
     return Dither_TriangleNoise(fragCoord * (1.0 / 1080.0), color).rgb1;
