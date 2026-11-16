@@ -24,7 +24,7 @@
           <circle cx="20.5" cy="20.5" r="5.2" fill="#0057ff"/>
         </svg>
         <span class="brand-name">Vibrance</span>
-        <span class="version-badge">v0.3.0</span>
+        <span class="version-badge">v0.4.0</span>
       </div>
 
       <nav aria-label="Primary">
@@ -483,10 +483,10 @@
               </div>
               <pre id="code-gradle" role="region" aria-labelledby="heading-gradle" tabindex="0"><code><span class="tok-fn">dependencies</span> {
     <span class="tok-cm">// Core pigment mixing (Android, JVM, iOS, macOS, JS, Wasm)</span>
-    <span class="tok-fn">implementation</span>(<span class="tok-str">"dev.romainguy:vibrance:0.3.0"</span>)
+    <span class="tok-fn">implementation</span>(<span class="tok-str">"dev.romainguy:vibrance:0.4.0"</span>)
 
     <span class="tok-cm">// Compose modifiers, brushes, and Color extensions</span>
-    <span class="tok-fn">implementation</span>(<span class="tok-str">"dev.romainguy:vibrance-compose:0.3.0"</span>)
+    <span class="tok-fn">implementation</span>(<span class="tok-str">"dev.romainguy:vibrance-compose:0.4.0"</span>)
 }</code></pre>
             </div>
           </div>
@@ -498,7 +498,7 @@
                 Create an instance of <code>Vibrance</code> to mix sRGB channels in the <code>0.0f..1.0f</code> range. Note that <code>Vibrance</code> reuses internal scratch buffers and is not thread-safe; keep one instance per thread.
               </p>
               <p>
-                Upscaling an sRGB color into the latent space runs a small neural network and is the main cost of a mix. When interpolating between the same pair of colors repeatedly—such as during an animation—precompute both 6-float latent arrays once with <code>colorToLatentColor</code> and interpolate them with <code>latentColorsMix</code>. You can also pass your own <code>FloatArray</code> buffers to avoid allocations.
+                Upscaling an sRGB color into the latent space runs a small neural network and is the main cost of a mix. When interpolating between the same pair of colors repeatedly (such as during an animation) precompute both 6-float latent arrays once with <code>colorToLatentColor</code> and interpolate them with <code>latentColorsMix</code>. You can also pass your own <code>FloatArray</code> buffers to avoid allocations.
               </p>
             </div>
 
@@ -664,7 +664,7 @@ vibrance.<span class="tok-fn">latentColorsMix</span>(latentYellow, latentBlue, a
   <footer class="site-footer">
     <div class="container footer-inner">
       <p>
-        <strong>Vibrance</strong> v0.3.0 &middot; Released under the
+        <strong>Vibrance</strong> v0.4.0 &middot; Released under the
         <a href="https://github.com/romainguy/vibrance/blob/main/LICENSE">Apache 2.0 License</a>.
       </p>
       <p>
