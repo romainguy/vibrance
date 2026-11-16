@@ -27,6 +27,22 @@ export function eotfSrgb(x) {
   return x > 0.04045 ? Math.pow((x + 0.055) / 1.055, 2.4) : (1.0 / 12.92) * x;
 }
 
+const REMAINDER_PAD = 0.01;
+const REMAINDER_SCALE = 1.0 - 2.0 * REMAINDER_PAD;
+
+function encodeRemainder(targetLinear, mixedLinear) {
+  const mp = REMAINDER_PAD + REMAINDER_SCALE * mixedLinear;
+  const num = targetLinear * (1.0 - mp);
+  return num / (num + (1.0 - targetLinear) * mp);
+}
+
+function applyRemainder(mixedLinear, remainder) {
+  const b = clamp01(remainder);
+  const mp = REMAINDER_PAD + REMAINDER_SCALE * mixedLinear;
+  const num = mp * b;
+  return clamp01(num / (num + (1.0 - mp) * (1.0 - b)));
+}
+
 class ColorToPigmentsModel {
   constructor() {
     this._frequencies = positionalEncodingFrequencies;
@@ -118,9 +134,9 @@ export class Vibrance {
     latentColor[0] = latent0;
     latentColor[1] = latent1;
     latentColor[2] = latent2;
-    latentColor[3] = eotfSrgb(cr) - buffer[0];
-    latentColor[4] = eotfSrgb(cg) - buffer[1];
-    latentColor[5] = eotfSrgb(cb) - buffer[2];
+    latentColor[3] = encodeRemainder(eotfSrgb(cr), buffer[0]);
+    latentColor[4] = encodeRemainder(eotfSrgb(cg), buffer[1]);
+    latentColor[5] = encodeRemainder(eotfSrgb(cb), buffer[2]);
 
     return latentColor;
   }
@@ -139,9 +155,9 @@ export class Vibrance {
 
     pigmentsMixLinear(blue, magenta, yellow, color);
 
-    color[0] = oetfSrgb(clamp01(color[0] + latentColor[3]));
-    color[1] = oetfSrgb(clamp01(color[1] + latentColor[4]));
-    color[2] = oetfSrgb(clamp01(color[2] + latentColor[5]));
+    color[0] = oetfSrgb(applyRemainder(color[0], latentColor[3]));
+    color[1] = oetfSrgb(applyRemainder(color[1], latentColor[4]));
+    color[2] = oetfSrgb(applyRemainder(color[2], latentColor[5]));
 
     return color;
   }
@@ -159,9 +175,9 @@ export class Vibrance {
     const c2 = lerp(src[2], dst[2], amount);
     pigmentsMixLinear(c0, c1, c2, color);
 
-    color[0] = oetfSrgb(clamp01(color[0] + lerp(src[3], dst[3], amount)));
-    color[1] = oetfSrgb(clamp01(color[1] + lerp(src[4], dst[4], amount)));
-    color[2] = oetfSrgb(clamp01(color[2] + lerp(src[5], dst[5], amount)));
+    color[0] = oetfSrgb(applyRemainder(color[0], lerp(src[3], dst[3], amount)));
+    color[1] = oetfSrgb(applyRemainder(color[1], lerp(src[4], dst[4], amount)));
+    color[2] = oetfSrgb(applyRemainder(color[2], lerp(src[5], dst[5], amount)));
 
     return color;
   }
@@ -181,9 +197,9 @@ export class Vibrance {
     const srcPigment2 = color[2];
 
     pigmentsMixLinear(srcPigment0, srcPigment1, srcPigment2, color);
-    const srcRemainderR = eotfSrgb(sr) - color[0];
-    const srcRemainderG = eotfSrgb(sg) - color[1];
-    const srcRemainderB = eotfSrgb(sb) - color[2];
+    const srcRemainderR = encodeRemainder(eotfSrgb(sr), color[0]);
+    const srcRemainderG = encodeRemainder(eotfSrgb(sg), color[1]);
+    const srcRemainderB = encodeRemainder(eotfSrgb(sb), color[2]);
 
     const dr = clamp01(dstR);
     const dg = clamp01(dstG);
@@ -195,18 +211,18 @@ export class Vibrance {
     const dstPigment2 = color[2];
 
     pigmentsMixLinear(dstPigment0, dstPigment1, dstPigment2, color);
-    const dstRemainderR = eotfSrgb(dr) - color[0];
-    const dstRemainderG = eotfSrgb(dg) - color[1];
-    const dstRemainderB = eotfSrgb(db) - color[2];
+    const dstRemainderR = encodeRemainder(eotfSrgb(dr), color[0]);
+    const dstRemainderG = encodeRemainder(eotfSrgb(dg), color[1]);
+    const dstRemainderB = encodeRemainder(eotfSrgb(db), color[2]);
 
     const c0 = lerp(srcPigment0, dstPigment0, amount);
     const c1 = lerp(srcPigment1, dstPigment1, amount);
     const c2 = lerp(srcPigment2, dstPigment2, amount);
     pigmentsMixLinear(c0, c1, c2, color);
 
-    color[0] = oetfSrgb(clamp01(color[0] + lerp(srcRemainderR, dstRemainderR, amount)));
-    color[1] = oetfSrgb(clamp01(color[1] + lerp(srcRemainderG, dstRemainderG, amount)));
-    color[2] = oetfSrgb(clamp01(color[2] + lerp(srcRemainderB, dstRemainderB, amount)));
+    color[0] = oetfSrgb(applyRemainder(color[0], lerp(srcRemainderR, dstRemainderR, amount)));
+    color[1] = oetfSrgb(applyRemainder(color[1], lerp(srcRemainderG, dstRemainderG, amount)));
+    color[2] = oetfSrgb(applyRemainder(color[2], lerp(srcRemainderB, dstRemainderB, amount)));
 
     return color;
   }
