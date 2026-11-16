@@ -498,7 +498,7 @@
                 Create an instance of <code>Vibrance</code> to mix sRGB channels in the <code>0.0f..1.0f</code> range. Note that <code>Vibrance</code> reuses internal scratch buffers and is not thread-safe; keep one instance per thread.
               </p>
               <p>
-                Upscaling an sRGB color into the latent space runs a small neural network and is the main cost of a mix. When interpolating between the same pair of colors repeatedly—such as during an animation—precompute both 6-float latent arrays once with <code>colorToLatentColor</code> and interpolate them with <code>latentColorsMix</code>. You can also pass your own <code>FloatArray</code> buffers to avoid allocations.
+                Upscaling an sRGB color into the latent space runs a small neural network and is the main cost of a mix. When interpolating between the same pair of colors repeatedly (such as during an animation) precompute both 6-float latent arrays once with <code>colorToLatentColor</code> and interpolate them with <code>latentColorsMix</code>. You can also pass your own <code>FloatArray</code> buffers to avoid allocations.
               </p>
             </div>
 
