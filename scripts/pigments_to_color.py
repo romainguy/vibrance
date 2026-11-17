@@ -12,15 +12,15 @@ import torch.optim as optim
 pg = pigments.Pigments(pigments.load_config_from_json("config.json"))
 
 class PigmentsToColorMLP(nn.Module):
-    def __init__(self, neurons=16, b_min=0.02, b_max=0.50):
+    def __init__(self, neurons=16, delta_min=0.15, delta_max=1.20):
         super().__init__()
         self.neurons = neurons
-        self.b_min = b_min
-        self.b_max = b_max
+        self.delta_min = delta_min
+        self.delta_max = delta_max
         # Learned half-saturation poles k_i > 0 for rational tinting features q_i = c_i / (c_i + k_i)
         self.log_k = nn.Parameter(torch.log(torch.tensor([0.032, 0.120, 0.250])))
-        # Learned per-neuron Squareplus smoothness parameters b_i in [b_min, b_max]
-        self.raw_b = nn.Parameter(torch.zeros(neurons))
+        # Learned per-neuron C2 spline half-widths delta_i in [delta_min, delta_max]
+        self.raw_delta = nn.Parameter(torch.zeros(neurons))
         self.skip = nn.Linear(6, 3)
         self.hidden_dir = nn.Parameter(torch.randn(neurons, 6))
         self.hidden_bias = nn.Parameter(torch.zeros(neurons))
@@ -29,8 +29,8 @@ class PigmentsToColorMLP(nn.Module):
     def rational_k(self):
         return torch.clamp(torch.exp(self.log_k), min=1e-3)
 
-    def smooth_b(self):
-        return self.b_min + (self.b_max - self.b_min) * torch.sigmoid(self.raw_b)
+    def smooth_delta(self):
+        return self.delta_min + (self.delta_max - self.delta_min) * torch.sigmoid(self.raw_delta)
 
     def normalized_dir(self):
         return torch.nn.functional.normalize(self.hidden_dir, p=2, dim=-1, eps=1e-8)
@@ -47,15 +47,18 @@ class PigmentsToColorMLP(nn.Module):
             directions = torch.nn.functional.normalize(directions, p=2, dim=-1, eps=1e-8)
             self.hidden_dir.copy_(directions)
             self.hidden_bias.copy_(-(directions * points).sum(dim=-1))
-            init_b = 0.04
-            p = (init_b - self.b_min) / (self.b_max - self.b_min)
-            self.raw_b.fill_(math.log(p / (1.0 - p)))
+            init_delta = 0.30
+            p = (init_delta - self.delta_min) / (self.delta_max - self.delta_min)
+            self.raw_delta.fill_(math.log(p / (1.0 - p)))
 
     def forward(self, x):
         f = self.features(x)
         z = torch.nn.functional.linear(f, self.normalized_dir(), self.hidden_bias)
-        b = self.smooth_b()
-        h = 0.5 * (z + torch.sqrt(z * z + b))
+        delta = self.smooth_delta()
+        u = (z + delta) / (2.0 * delta)
+        s = torch.clamp(u, 0.0, 1.0)
+        s2 = s * s
+        h = (2.0 * delta) * (torch.relu(u - 1.0) + s2 * (s - 0.5 * s2))
         return self.skip(f) + self.output(h)
 
 def _simplex_neuron_bounds(b_in, w_in, rational_k):
@@ -127,25 +130,36 @@ def extract_pruned_weights(model):
         skip_weight = model_cpu.skip.weight.detach().numpy().astype(np.float64).copy()
         hidden_weight = model_cpu.normalized_dir().detach().numpy().astype(np.float64)
         hidden_bias = model_cpu.hidden_bias.detach().numpy().astype(np.float64)
-        smooth_b = model_cpu.smooth_b().detach().numpy().astype(np.float64)
+        smooth_delta = model_cpu.smooth_delta().detach().numpy().astype(np.float64)
         output_weight = model_cpu.output.weight.detach().numpy().astype(np.float64)
 
     active_neurons = []
     dead_count = 0
+    folded_count = 0
 
     for i in range(model_cpu.neurons):
-        w_in = hidden_weight[i]
-        b_in = float(hidden_bias[i])
-        sq_b = float(smooth_b[i])
-        w_out = output_weight[:, i]
+        delta = float(smooth_delta[i])
+        inv_2d = 0.5 / delta
+        w_u = hidden_weight[i] * inv_2d
+        b_u = (float(hidden_bias[i]) + delta) * inv_2d
+        w_out = (2.0 * delta) * output_weight[:, i]
 
         if float(np.max(np.abs(w_out))) <= 1e-7:
             dead_count += 1
-        else:
-            # Squareplus h = 0.5 * (z + sqrt(z^2 + b)): pre-fold 0.5 into output weights
-            active_neurons.append((b_in, w_in, sq_b, 0.5 * w_out))
+            continue
 
-    return rational_k, skip_bias, skip_weight, active_neurons, dead_count, 0
+        u_min, u_max = _simplex_neuron_bounds(b_u, w_u, rational_k)
+        if u_max <= -1e-6:
+            dead_count += 1
+        elif u_min >= 1.0 + 1e-6:
+            # Neuron stays strictly in the affine tail h(u) = u - 0.5 everywhere on the simplex
+            skip_bias += w_out * (b_u - 0.5)
+            skip_weight += np.outer(w_out, w_u)
+            folded_count += 1
+        else:
+            active_neurons.append((b_u, w_u, delta, w_out))
+
+    return rational_k, skip_bias, skip_weight, active_neurons, dead_count, folded_count
 
 def _format_linear_combination(bias, weights, var_names, suffix="", wrap_after=None, wrap_indent=""):
     first_part = f"{bias:.7f}{suffix}"
@@ -187,7 +201,7 @@ def generate_kotlin_neural_network(mlp_model):
         "    ) {",
         "        // Mixing pigments to a linear sRGB color is implemented using a single hidden",
         f"        // layer, {mlp_model.neurons} neurons, neural network with rational tinting-strength features",
-        "        // and smooth Squareplus activations (0.5 factor pre-folded into output weights).",
+        "        // and C2 quartic smooth-ReLU activations (transition widths pre-folded into weights).",
         "        // The loops have been unrolled and the code re-organized to minimize register",
         "        // spilling and keep the instructions count low on arm64.",
         f"        val q0 = c0 / (c0 + {rational_k[0]:.7f}f)",
@@ -208,18 +222,23 @@ def generate_kotlin_neural_network(mlp_model):
         align = " " if skip_bias[ch] >= 0.0 else ""
         lines.append(f"        {decl} {channels[ch]} = {align}{init_expr}")
 
-    for idx, (b_in, w_in, sq_b, w_out) in enumerate(active_neurons):
+    for idx, (b_u, w_u, _delta, w_out) in enumerate(active_neurons):
         lines.append("")
         hinge_expr = _format_linear_combination(
-            b_in,
-            w_in,
+            b_u,
+            w_u,
             inputs,
             suffix="f",
             wrap_after=3,
             wrap_indent="            "
         )
-        lines.append(f"        val z{idx} = {hinge_expr}")
-        lines.append(f"        val h{idx} = z{idx} + sqrt(z{idx} * z{idx} + {sq_b:.7f}f)")
+        lines.append(f"        val u{idx} = {hinge_expr}")
+        lines.append(f"        val s{idx} = u{idx}.fastCoerceIn(0.0f, 1.0f)")
+        lines.append(f"        val s{idx}Sq = s{idx} * s{idx}")
+        lines.append(
+            f"        val h{idx} = (u{idx} - 1.0f).fastCoerceAtLeast(0.0f) + "
+            f"s{idx}Sq * (s{idx} - 0.5f * s{idx}Sq)"
+        )
         for ch in range(3):
             weight = w_out[ch]
             if abs(weight) >= 1e-7:
@@ -255,11 +274,16 @@ def generate_python_neural_network(mlp_model):
         align = " " if skip_bias[ch] >= 0.0 else ""
         lines.append(f"        {channels[ch]} = {align}{init_expr}")
 
-    for idx, (b_in, w_in, sq_b, w_out) in enumerate(active_neurons):
+    for idx, (b_u, w_u, _delta, w_out) in enumerate(active_neurons):
         lines.append("")
-        hinge_expr = _format_linear_combination(b_in, w_in, inputs)
-        lines.append(f"        z{idx} = {hinge_expr}")
-        lines.append(f"        h{idx} = z{idx} + math.sqrt(z{idx} * z{idx} + {sq_b:.7f})")
+        hinge_expr = _format_linear_combination(b_u, w_u, inputs)
+        lines.append(f"        u{idx} = {hinge_expr}")
+        lines.append(f"        s{idx} = 0.0 if u{idx} < 0.0 else (1.0 if u{idx} > 1.0 else u{idx})")
+        lines.append(f"        s{idx}_sq = s{idx} * s{idx}")
+        lines.append(
+            f"        h{idx} = (u{idx} - 1.0 if u{idx} > 1.0 else 0.0) + "
+            f"s{idx}_sq * (s{idx} - 0.5 * s{idx}_sq)"
+        )
         for ch in range(3):
             weight = w_out[ch]
             if abs(weight) >= 1e-7:
@@ -284,6 +308,11 @@ def _format_float(value):
 def _format_float3(values):
     return f"float3({_format_float(values[0])}, {_format_float(values[1])}, {_format_float(values[2])})"
 
+def _format_float_vec(values):
+    if len(values) == 1:
+        return _format_float(values[0])
+    return f"float{len(values)}({', '.join(_format_float(v) for v in values)})"
+
 def generate_shader_neural_network(mlp_model):
     rational_k, skip_bias, skip_weight, active_neurons, _, _ = extract_pruned_weights(mlp_model)
     feature_components = ['c.x', 'c.y', 'c.z', 'q.x', 'q.y', 'q.z']
@@ -306,19 +335,47 @@ def generate_shader_neural_network(mlp_model):
         rgb_init,
     ]
 
-    for idx, (b_in, w_in, sq_b, w_out) in enumerate(active_neurons):
+    swizzles = ("x", "y", "z", "w")
+    for g, start in enumerate(range(0, len(active_neurons), 4)):
+        chunk = active_neurons[start:start + 4]
+        k = len(chunk)
+        vec_type = "float" if k == 1 else f"float{k}"
+        one_expr = "1.0" if k == 1 else f"float{k}(1.0)"
+        zero_expr = "0.0" if k == 1 else f"float{k}(0.0)"
+
+        biases = [n[0] for n in chunk]
+        w_in_mat = np.stack([n[1] for n in chunk], axis=0)
+        u_terms = [_format_float_vec(biases)]
+        for col_idx, comp in enumerate(feature_components):
+            col = w_in_mat[:, col_idx]
+            if float(np.max(np.abs(col))) >= 1e-7:
+                u_terms.append(f"{comp} * {_format_float_vec(col)}")
+
+        if len(u_terms) == 1:
+            u_expr = f"    {vec_type} u{g} = {u_terms[0]};"
+        else:
+            u_expr = f"    {vec_type} u{g} = {u_terms[0]}\n        + " + "\n        + ".join(u_terms[1:]) + ";"
+
         lines.append("")
-        w_c = w_in[:3]
-        w_q = w_in[3:]
-        dot_terms = [_format_float(b_in)]
-        if float(np.max(np.abs(w_c))) >= 1e-7:
-            dot_terms.append(f"dot(c, {_format_float3(w_c)})")
-        if float(np.max(np.abs(w_q))) >= 1e-7:
-            dot_terms.append(f"dot(q, {_format_float3(w_q)})")
-        hinge_sum = "\n        + ".join(dot_terms)
-        lines.append(f"    float z{idx} = {hinge_sum};")
-        lines.append(f"    float h{idx} = z{idx} + sqrt(z{idx} * z{idx} + {_format_float(sq_b)});")
-        lines.append(f"    rgb += h{idx} * {_format_float3(w_out)};")
+        lines.append(u_expr)
+        lines.append(f"    {vec_type} s{g} = saturate(u{g});")
+        lines.append(f"    {vec_type} s{g}_2 = s{g} * s{g};")
+        lines.append(
+            f"    {vec_type} h{g} = max(u{g} - {one_expr}, {zero_expr}) + s{g}_2 * (s{g} - 0.5 * s{g}_2);"
+        )
+
+        if k == 1:
+            w_out = chunk[0][3]
+            if float(np.max(np.abs(w_out))) >= 1e-7:
+                lines.append(f"    rgb += h{g} * {_format_float3(w_out)};")
+        else:
+            out_terms = []
+            for idx in range(k):
+                w_out = chunk[idx][3]
+                if float(np.max(np.abs(w_out))) >= 1e-7:
+                    out_terms.append(f"h{g}.{swizzles[idx]} * {_format_float3(w_out)}")
+            if out_terms:
+                lines.append("    rgb += " + "\n        + ".join(out_terms) + ";")
 
     lines.extend([
         "",
@@ -467,7 +524,7 @@ def _replace_brace_function(filepath, signature_pattern, new_code, function_name
     with open(filepath, "w", encoding="utf-8", newline="") as f:
         f.write(updated)
 
-def _ensure_kotlin_sqrt_import(filepath):
+def _sync_kotlin_math_imports(filepath):
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"Could not find {filepath}")
 
@@ -477,35 +534,39 @@ def _ensure_kotlin_sqrt_import(filepath):
     line_sep = "\r\n" if "\r\n" in content else "\n"
     trailing_newline = content.endswith("\n")
     lines = content.splitlines()
+    body = "\n".join(line for line in lines if not line.lstrip().startswith("import "))
 
-    if any(line.strip() == "import kotlin.math.sqrt" for line in lines):
-        return
+    uses_sqrt = re.search(r"\bsqrt\s*\(", body) is not None
+    uses_max = re.search(r"\bmax\s*\(", body) is not None
 
-    uses_max = re.search(r"\bmax\s*\(", content) is not None
-    if not uses_max:
-        for idx, line in enumerate(lines):
-            if line.strip() == "import kotlin.math.max":
-                indent = line[:len(line) - len(line.lstrip(" "))]
-                lines[idx] = f"{indent}import kotlin.math.sqrt"
-                updated = line_sep.join(lines) + (line_sep if trailing_newline else "")
-                with open(filepath, "w", encoding="utf-8", newline="") as f:
-                    f.write(updated)
-                return
+    filtered_lines = []
+    has_sqrt_import = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "import kotlin.math.sqrt":
+            if uses_sqrt:
+                filtered_lines.append(line)
+                has_sqrt_import = True
+            continue
+        if stripped == "import kotlin.math.max" and not uses_max:
+            continue
+        filtered_lines.append(line)
 
-    insert_idx = None
-    for idx, line in enumerate(lines):
-        if line.strip().startswith("import kotlin.math."):
-            insert_idx = idx + 1
-    if insert_idx is None:
-        for idx, line in enumerate(lines):
-            if line.strip().startswith("package "):
+    if uses_sqrt and not has_sqrt_import:
+        insert_idx = None
+        for idx, line in enumerate(filtered_lines):
+            if line.strip().startswith("import kotlin.math."):
                 insert_idx = idx + 1
-                break
-    if insert_idx is None:
-        insert_idx = 0
+        if insert_idx is None:
+            for idx, line in enumerate(filtered_lines):
+                if line.strip().startswith("package "):
+                    insert_idx = idx + 1
+                    break
+        if insert_idx is None:
+            insert_idx = 0
+        filtered_lines.insert(insert_idx, "import kotlin.math.sqrt")
 
-    lines.insert(insert_idx, "import kotlin.math.sqrt")
-    updated = line_sep.join(lines) + (line_sep if trailing_newline else "")
+    updated = line_sep.join(filtered_lines) + (line_sep if trailing_newline else "")
     with open(filepath, "w", encoding="utf-8", newline="") as f:
         f.write(updated)
 
@@ -521,7 +582,7 @@ def update_source_files(data_config, mlp_model):
         kotlin_code,
         "pigmentsMixLinear"
     )
-    _ensure_kotlin_sqrt_import(data_config.mix_path_kotlin)
+    _sync_kotlin_math_imports(data_config.mix_path_kotlin)
     print(f"Updated Kotlin implementation in: {data_config.mix_path_kotlin}")
 
     glsl_code = generate_shader_neural_network(mlp_model)
@@ -841,14 +902,14 @@ def fit_mix_nn(data_config, neurons=16, sample_size=384):
     uniform_errors = all_errors[:num_uniform]
 
     rational_k, _, _, active_neurons, dead_count, folded_count = extract_pruned_weights(model)
-    sq_bs = [n[2] for n in active_neurons]
-    b_summary = f"({min(sq_bs):.6f}..{max(sq_bs):.6f})" if sq_bs else "(none)"
+    deltas = [n[2] for n in active_neurons]
+    delta_summary = f"({min(deltas):.6f}..{max(deltas):.6f})" if deltas else "(none)"
     print(
         f"Active nonlinear neurons : {len(active_neurons)}/{neurons} "
         f"(folded always-on: {folded_count}, pruned dead: {dead_count})"
     )
     print(f"Rational poles (k0,k1,k2): ({rational_k[0]:.6f}, {rational_k[1]:.6f}, {rational_k[2]:.6f})")
-    print(f"Squareplus b range       : {b_summary}")
+    print(f"C2 hinge delta range     : {delta_summary}")
     print(f"Mean Squared Error (MSE) : {np.mean(uniform_errors ** 2):.6f}")
     print(f"50.0th percentile error  : {np.percentile(uniform_errors, 50):.6f}")
     print(f"90.0th percentile error  : {np.percentile(uniform_errors, 90):.6f}")

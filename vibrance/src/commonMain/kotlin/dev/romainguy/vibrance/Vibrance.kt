@@ -3,7 +3,6 @@
 package dev.romainguy.vibrance
 
 import kotlin.math.abs
-import kotlin.math.sqrt
 
 /**
  * [Vibrance] can be used to mix (or interpolate) sRGB colors as if they were made
@@ -359,131 +358,163 @@ class Vibrance {
     ) {
         // Mixing pigments to a linear sRGB color is implemented using a single hidden
         // layer, 16 neurons, neural network with rational tinting-strength features
-        // and smooth Squareplus activations (0.5 factor pre-folded into output weights).
+        // and C2 quartic smooth-ReLU activations (transition widths pre-folded into weights).
         // The loops have been unrolled and the code re-organized to minimize register
         // spilling and keep the instructions count low on arm64.
-        val q0 = c0 / (c0 + 0.0310625f)
-        val q1 = c1 / (c1 + 0.2191592f)
-        val q2 = c2 / (c2 + 0.2235622f)
+        val q0 = c0 / (c0 + 0.0398001f)
+        val q1 = c1 / (c1 + 0.2109625f)
+        val q2 = c2 / (c2 + 0.1513699f)
 
-        var r =  0.1138980f + c0 * 0.2006903f + c1 * 0.2850100f - c2 * 0.0223676f +
-            q0 * 0.0238455f + q1 * 0.0664495f + q2 * 0.2763469f
-        var g =  0.4692093f - c0 * 0.7184518f - c1 * 0.2503175f - c2 * 0.0802540f -
-            q0 * 0.1460137f - q1 * 0.1413032f + q2 * 0.2349665f
-        var b = -0.0526232f - c0 * 0.0812431f - c1 * 0.0933264f - c2 * 0.0236277f +
-            q0 * 0.1413919f + q1 * 0.2800236f - q2 * 0.4376401f
+        var r =  0.0942057f + c0 * 0.1703877f + c1 * 0.2319316f - c2 * 0.1716009f +
+            q0 * 0.0394091f - q1 * 0.0489831f + q2 * 0.1606205f
+        var g =  0.3998840f - c0 * 0.6139438f - c1 * 0.0244454f - c2 * 0.0807311f -
+            q0 * 0.1587674f - q1 * 0.0588993f + q2 * 0.2137057f
+        var b =  0.0436599f + c0 * 0.1173228f + c1 * 0.0383668f - c2 * 0.0129965f +
+            q0 * 0.2922518f + q1 * 0.3375300f - q2 * 0.6318032f
 
-        val z0 = 0.1252622f - c0 * 0.5201054f - c1 * 0.0911538f + c2 * 0.0355596f +
-            q0 * 0.7600455f - q1 * 0.1648567f - q2 * 0.3392197f
-        val h0 = z0 + sqrt(z0 * z0 + 0.0436730f)
-        r -= h0 * 0.2077531f
-        g += h0 * 0.0062347f
-        b += h0 * 0.0287711f
+        val u0 = 0.7617934f - c0 * 2.0405555f + c1 * 0.3112379f - c2 * 0.8018587f +
+            q0 * 2.3255994f - q1 * 0.4363129f + q2 * 0.0858946f
+        val s0 = u0.fastCoerceIn(0.0f, 1.0f)
+        val s0Sq = s0 * s0
+        val h0 = (u0 - 1.0f).fastCoerceAtLeast(0.0f) + s0Sq * (s0 - 0.5f * s0Sq)
+        r -= h0 * 0.0846060f
+        g -= h0 * 0.0050965f
+        b += h0 * 0.0108343f
 
-        val z1 = -0.7411862f + c0 * 0.0598556f + c1 * 0.1075494f + c2 * 0.2917133f +
-            q0 * 0.9456514f + q1 * 0.0729930f - q2 * 0.0130125f
-        val h1 = z1 + sqrt(z1 * z1 + 0.0590666f)
-        r -= h1 * 0.2129128f
-        g -= h1 * 0.0746477f
-        b -= h1 * 0.0058008f
+        val u1 = -0.3669254f + c0 * 0.5272365f + c1 * 0.0513481f + c2 * 0.1808509f +
+            q0 * 0.7708003f + q1 * 0.0586200f + q2 * 0.2390250f
+        val s1 = u1.fastCoerceIn(0.0f, 1.0f)
+        val s1Sq = s1 * s1
+        val h1 = (u1 - 1.0f).fastCoerceAtLeast(0.0f) + s1Sq * (s1 - 0.5f * s1Sq)
+        r -= h1 * 0.7024046f
+        g -= h1 * 0.0563102f
+        b += h1 * 0.0369187f
 
-        val z2 = 0.9973216f + c0 * 0.0789433f + c1 * 0.1078733f - c2 * 0.2276448f -
-            q0 * 0.2921924f - q1 * 0.1357998f - q2 * 0.9091156f
-        val h2 = z2 + sqrt(z2 * z2 + 0.0331533f)
-        r += h2 * 0.0314042f
-        g += h2 * 0.1260467f
-        b += h2 * 0.0422853f
+        val u2 = 1.3967189f - c0 * 0.9044641f - c1 * 0.0164963f - c2 * 0.0648650f -
+            q0 * 0.4116434f - q1 * 0.2583996f - q2 * 0.1407897f
+        val s2 = u2.fastCoerceIn(0.0f, 1.0f)
+        val s2Sq = s2 * s2
+        val h2 = (u2 - 1.0f).fastCoerceAtLeast(0.0f) + s2Sq * (s2 - 0.5f * s2Sq)
+        r += h2 * 0.0530008f
+        g += h2 * 0.2685580f
+        b += h2 * 0.2063591f
 
-        val z3 = 0.6439704f - c0 * 0.6540558f + c1 * 0.0730592f + c2 * 0.0715327f -
-            q0 * 0.7354834f - q1 * 0.1441095f - q2 * 0.0072820f
-        val h3 = z3 + sqrt(z3 * z3 + 0.0334003f)
-        r += h3 * 0.2236924f
-        g += h3 * 0.1058263f
-        b -= h3 * 0.0406763f
+        val u3 = 1.9257392f + c0 * 0.4095860f + c1 * 0.2479234f + c2 * 0.4018383f -
+            q0 * 1.7728392f - q1 * 0.2889820f - q2 * 0.3477753f
+        val s3 = u3.fastCoerceIn(0.0f, 1.0f)
+        val s3Sq = s3 * s3
+        val h3 = (u3 - 1.0f).fastCoerceAtLeast(0.0f) + s3Sq * (s3 - 0.5f * s3Sq)
+        r += h3 * 0.2273123f
+        g += h3 * 0.0223245f
+        b -= h3 * 0.0063244f
 
-        val z4 = 0.1893468f - c0 * 0.5930237f - c1 * 0.3712729f + c2 * 0.1466069f -
-            q0 * 0.6289639f - q1 * 0.3043411f + q2 * 0.0276856f
-        val h4 = z4 + sqrt(z4 * z4 + 0.1507604f)
-        r += h4 * 0.2617889f
-        g += h4 * 0.0970473f
-        b -= h4 * 0.0667461f
+        val u4 = 0.5804944f + c0 * 0.1197487f - c1 * 0.3406990f + c2 * 0.1528339f -
+            q0 * 0.7473584f - q1 * 0.1581982f - q2 * 0.0572037f
+        val s4 = u4.fastCoerceIn(0.0f, 1.0f)
+        val s4Sq = s4 * s4
+        val h4 = (u4 - 1.0f).fastCoerceAtLeast(0.0f) + s4Sq * (s4 - 0.5f * s4Sq)
+        r += h4 * 0.9123240f
+        g += h4 * 0.2034202f
+        b -= h4 * 0.1264191f
 
-        val z5 = -0.2695661f - c0 * 0.1543189f - c1 * 0.1793479f - c2 * 0.7816104f +
-            q0 * 0.0079201f + q1 * 0.5748301f + q2 * 0.0511160f
-        val h5 = z5 + sqrt(z5 * z5 + 0.0313477f)
-        r -= h5 * 0.0675984f
-        g -= h5 * 0.0622383f
-        b += h5 * 0.5946171f
+        val u5 = -0.0325220f + c0 * 0.3890758f - c1 * 0.4171871f + c2 * 0.0243509f +
+            q0 * 0.3468475f + q1 * 0.1799036f - q2 * 0.3129576f
+        val s5 = u5.fastCoerceIn(0.0f, 1.0f)
+        val s5Sq = s5 * s5
+        val h5 = (u5 - 1.0f).fastCoerceAtLeast(0.0f) + s5Sq * (s5 - 0.5f * s5Sq)
+        r -= h5 * 0.3006504f
+        g -= h5 * 0.0019110f
+        b -= h5 * 0.5820184f
 
-        val z6 = -0.1413133f - c0 * 0.3384386f + c1 * 0.6572116f + c2 * 0.6559677f -
-            q0 * 0.1352028f + q1 * 0.0270607f + q2 * 0.0650126f
-        val h6 = z6 + sqrt(z6 * z6 + 0.0809649f)
-        r -= h6 * 0.1797305f
-        g -= h6 * 0.0379612f
-        b -= h6 * 0.0192549f
+        val u6 = 0.1023628f - c0 * 0.0347458f + c1 * 0.6043723f + c2 * 0.0326402f -
+            q0 * 0.0679549f + q1 * 0.2249385f + q2 * 0.2909658f
+        val s6 = u6.fastCoerceIn(0.0f, 1.0f)
+        val s6Sq = s6 * s6
+        val h6 = (u6 - 1.0f).fastCoerceAtLeast(0.0f) + s6Sq * (s6 - 0.5f * s6Sq)
+        r -= h6 * 0.3818003f
+        g -= h6 * 0.3901738f
+        b -= h6 * 0.0220673f
 
-        val z7 = 0.0664226f - c0 * 0.8321691f - c1 * 0.1382556f + c2 * 0.0467029f -
-            q0 * 0.0279708f - q1 * 0.5254193f - q2 * 0.0967015f
-        val h7 = z7 + sqrt(z7 * z7 + 0.0459607f)
-        r += h7 * 0.3974901f
-        g += h7 * 0.6498399f
-        b -= h7 * 0.0226307f
+        val u7 = 0.4741918f - c0 * 1.0170648f + c1 * 0.1637024f - c2 * 0.0065886f -
+            q0 * 0.0713866f - q1 * 0.6906144f - q2 * 0.0780988f
+        val s7 = u7.fastCoerceIn(0.0f, 1.0f)
+        val s7Sq = s7 * s7
+        val h7 = (u7 - 1.0f).fastCoerceAtLeast(0.0f) + s7Sq * (s7 - 0.5f * s7Sq)
+        r += h7 * 0.7496945f
+        g += h7 * 1.4022825f
+        b += h7 * 0.1176288f
 
-        val z8 = -0.0930780f + c0 * 0.6784285f + c1 * 0.1864256f - c2 * 0.1777748f -
-            q0 * 0.1015761f + q1 * 0.2995041f + q2 * 0.6110286f
-        val h8 = z8 + sqrt(z8 * z8 + 0.0200648f)
-        r -= h8 * 0.1684434f
-        g += h8 * 0.0378935f
-        b += h8 * 0.0907279f
+        val u8 = 0.6980488f + c0 * 0.4319992f - c1 * 0.0626281f - c2 * 0.6592367f +
+            q0 * 0.3713518f - q1 * 0.1318354f - q2 * 0.3573421f
+        val s8 = u8.fastCoerceIn(0.0f, 1.0f)
+        val s8Sq = s8 * s8
+        val h8 = (u8 - 1.0f).fastCoerceAtLeast(0.0f) + s8Sq * (s8 - 0.5f * s8Sq)
+        r -= h8 * 0.3760870f
+        g += h8 * 0.0907319f
+        b += h8 * 0.0117416f
 
-        val z9 = -0.5700094f - c0 * 0.5162911f - c1 * 0.4263113f + c2 * 0.2584335f +
-            q0 * 0.4651760f + q1 * 0.4406392f - q2 * 0.2726952f
-        val h9 = z9 + sqrt(z9 * z9 + 0.0358842f)
-        r += h9 * 0.1909737f
-        g += h9 * 0.0818795f
-        b += h9 * 0.1061134f
+        val u9 = 0.0680660f + c0 * 0.0858009f + c1 * 0.2646287f + c2 * 0.2600586f +
+            q0 * 0.0216613f + q1 * 0.3207402f - q2 * 0.4917397f
+        val s9 = u9.fastCoerceIn(0.0f, 1.0f)
+        val s9Sq = s9 * s9
+        val h9 = (u9 - 1.0f).fastCoerceAtLeast(0.0f) + s9Sq * (s9 - 0.5f * s9Sq)
+        r -= h9 * 0.0526490f
+        g += h9 * 0.0008695f
+        b -= h9 * 1.1715037f
 
-        val z10 = 0.0675779f - c0 * 0.1526181f - c1 * 0.6554778f - c2 * 0.6075161f -
-            q0 * 0.0318142f + q1 * 0.0631102f - q2 * 0.4159156f
-        val h10 = z10 + sqrt(z10 * z10 + 0.0400651f)
-        r -= h10 * 0.0182861f
-        g += h10 * 0.0797339f
-        b += h10 * 1.1742090f
+        val u10 = 0.4834386f - c0 * 0.5719878f - c1 * 1.1263524f - c2 * 0.2889980f -
+            q0 * 0.0203989f - q1 * 0.0477446f - q2 * 0.5009462f
+        val s10 = u10.fastCoerceIn(0.0f, 1.0f)
+        val s10Sq = s10 * s10
+        val h10 = (u10 - 1.0f).fastCoerceAtLeast(0.0f) + s10Sq * (s10 - 0.5f * s10Sq)
+        r -= h10 * 0.4328068f
+        g += h10 * 0.2370650f
+        b += h10 * 0.9636616f
 
-        val z11 = 0.7879340f + c0 * 0.3684239f - c1 * 0.3804242f + c2 * 0.2696600f -
-            q0 * 0.6801093f + q1 * 0.2272401f - q2 * 0.3641951f
-        val h11 = z11 + sqrt(z11 * z11 + 0.0435383f)
-        r += h11 * 0.1932286f
-        g += h11 * 0.0285034f
-        b += h11 * 0.1023031f
+        val u11 = 3.3638372f + c0 * 1.7292200f - c1 * 1.5350319f - c2 * 0.0993377f -
+            q0 * 1.8210709f + q1 * 0.7025958f - q2 * 1.3914435f
+        val s11 = u11.fastCoerceIn(0.0f, 1.0f)
+        val s11Sq = s11 * s11
+        val h11 = (u11 - 1.0f).fastCoerceAtLeast(0.0f) + s11Sq * (s11 - 0.5f * s11Sq)
+        r += h11 * 0.1149270f
+        g += h11 * 0.0251914f
+        b += h11 * 0.0850134f
 
-        val z12 = 0.3761955f - c0 * 0.2408114f - c1 * 0.1430061f - c2 * 0.0045201f -
-            q0 * 0.6616894f + q1 * 0.6942975f + q2 * 0.0407043f
-        val h12 = z12 + sqrt(z12 * z12 + 0.0724127f)
-        r += h12 * 0.0548208f
-        g -= h12 * 0.2967174f
-        b += h12 * 0.0503791f
+        val u12 = 0.8389716f - c0 * 0.4684559f - c1 * 0.2579706f + c2 * 0.0343448f -
+            q0 * 0.6279241f + q1 * 0.7005695f - q2 * 0.0209734f
+        val s12 = u12.fastCoerceIn(0.0f, 1.0f)
+        val s12Sq = s12 * s12
+        val h12 = (u12 - 1.0f).fastCoerceAtLeast(0.0f) + s12Sq * (s12 - 0.5f * s12Sq)
+        r += h12 * 0.1540918f
+        g -= h12 * 0.5343750f
+        b += h12 * 0.1404618f
 
-        val z13 = 0.1706484f - c0 * 0.5852262f - c1 * 0.4396836f - c2 * 0.5350166f -
-            q0 * 0.2896418f + q1 * 0.2779544f + q2 * 0.1295947f
-        val h13 = z13 + sqrt(z13 * z13 + 0.0505045f)
-        r += h13 * 0.0398552f
-        g -= h13 * 0.0631965f
-        b -= h13 * 0.0983731f
+        val u13 = 1.1363839f + c0 * 1.8413706f + c1 * 1.1003418f - c2 * 0.2236535f -
+            q0 * 1.8478841f - q1 * 0.3094627f + q2 * 1.6426561f
+        val s13 = u13.fastCoerceIn(0.0f, 1.0f)
+        val s13Sq = s13 * s13
+        val h13 = (u13 - 1.0f).fastCoerceAtLeast(0.0f) + s13Sq * (s13 - 0.5f * s13Sq)
+        r += h13 * 0.0273948f
+        g -= h13 * 0.0074183f
+        b -= h13 * 0.0093523f
 
-        val z14 = -0.6701704f + c0 * 0.8382769f + c1 * 0.1520069f - c2 * 0.0277287f +
-            q0 * 0.3990448f + q1 * 0.3300152f + q2 * 0.0725957f
-        val h14 = z14 + sqrt(z14 * z14 + 0.0893828f)
-        r -= h14 * 0.1088641f
-        g += h14 * 0.2620537f
-        b -= h14 * 0.0669322f
+        val u14 = -0.6866699f + c0 * 1.0747178f + c1 * 0.0307113f + c2 * 0.0335598f +
+            q0 * 0.9366120f + q1 * 0.4623602f + q2 * 0.0181216f
+        val s14 = u14.fastCoerceIn(0.0f, 1.0f)
+        val s14Sq = s14 * s14
+        val h14 = (u14 - 1.0f).fastCoerceAtLeast(0.0f) + s14Sq * (s14 - 0.5f * s14Sq)
+        r += h14 * 0.0695353f
+        g += h14 * 0.3202189f
+        b -= h14 * 0.1638511f
 
-        val z15 = 0.8076255f - c0 * 0.1050001f - c1 * 0.5659755f + c2 * 0.1408194f -
-            q0 * 0.0762831f - q1 * 0.5195585f - q2 * 0.6107836f
-        val h15 = z15 + sqrt(z15 * z15 + 0.1055795f)
-        r -= h15 * 0.0088492f
-        g += h15 * 0.0342153f
-        b += h15 * 0.2892738f
+        val u15 = 1.1973850f - c0 * 0.0920046f - c1 * 0.8114011f + c2 * 0.0703730f -
+            q0 * 0.0336330f - q1 * 0.4128532f - q2 * 0.3697207f
+        val s15 = u15.fastCoerceIn(0.0f, 1.0f)
+        val s15Sq = s15 * s15
+        val h15 = (u15 - 1.0f).fastCoerceAtLeast(0.0f) + s15Sq * (s15 - 0.5f * s15Sq)
+        r += h15 * 0.0843518f
+        g += h15 * 0.3336647f
+        b += h15 * 0.5230504f
 
         color[0] = r.fastCoerceIn(0.0f, 1.0f)
         color[1] = g.fastCoerceIn(0.0f, 1.0f)

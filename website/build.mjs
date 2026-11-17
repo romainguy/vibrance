@@ -94,7 +94,9 @@ function generatePigmentsMixModule() {
     .replace(/\bval\b/g, 'const')
     .replace(/\bvar\b/g, 'let')
     .replace(/\bmax\s*\(/g, 'Math.max(')
-    .replace(/([rgb])\.fastCoerceIn\(\s*0\.0f\s*,\s*1\.0f\s*\)/g, 'clamp01($1)')
+    .replace(/(\w+)\.fastCoerceIn\(\s*0\.0f?\s*,\s*1\.0f?\s*\)/g, 'clamp01($1)')
+    .replace(/\(([^()]+)\)\.fastCoerceAtLeast\(\s*0\.0f?\s*\)/g, 'max0($1)')
+    .replace(/(\w+)\.fastCoerceAtLeast\(\s*0\.0f?\s*\)/g, 'max0($1)')
     .replace(/\bsqrt\s*\(/g, 'Math.sqrt(')
     .replace(/(\d)f\b/g, '$1');
 
@@ -103,6 +105,10 @@ function generatePigmentsMixModule() {
     '',
     'function clamp01(v) {',
     '  return v < 0.0 ? 0.0 : v > 1.0 ? 1.0 : v;',
+    '}',
+    '',
+    'function max0(v) {',
+    '  return v > 0.0 ? v : 0.0;',
     '}',
     '',
     'export function pigmentsMixLinear(c0, c1, c2, color) {',

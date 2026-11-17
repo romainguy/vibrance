@@ -133,16 +133,7 @@ The process to mix pigments is fairly simple and efficient but requires running 
 Kubelka-Munk equation for each measured wavelength. After mixing, the resulting reflectance
 is integrated using our chosen color-matching function. Even when optimized, this process
 requires, in our case, looping over 36 wavelengths. We can instead compute a good
-approximation by fitting a polynomial curve to our dataset.
+approximation by fitting a second, smaller neural network with a single layer.
 
-To perform the curve fit, run `pigments_to_color.py poly`. The script will generate the
-feature names, intercepts, and coefficients for a 2-degree polynomial that takes 4 pigment
-concentration as inputs, and returns a linear sRGB color.
-
-## 9. Jupyter Notebook
-
-The notebook in `Paint Mixing.ipynb` was the original implementation of the scripts
-detailed above. It now contains a simple visualization of various color ramps through
-the pigments mixing process.
-
-![Notebook Ramps](images/notebook-ramps.png)
+To perform the fit, run `pigments_to_color.py nn`. The script will generate the neural
+network code for Kotlin, Python, and GLSL.
