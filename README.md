@@ -1,4 +1,5 @@
 # Vibrance
+[Interactive demo](https://romainguy.github.io/vibrance/#playground).
 
 Natural color mixing for Kotlin and Compose Multiplatform.
 
